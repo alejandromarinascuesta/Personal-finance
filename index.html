@@ -171,9 +171,10 @@ select option{background:var(--surface2)}
 .twrr-tag{font-size:9.5px;padding:1px 5px;background:var(--purple-dim);color:var(--purple);border-radius:4px;font-family:var(--mono);font-weight:600}
 .num-pos{color:var(--green)}.num-neg{color:var(--red)}.num-neutral{color:var(--text-muted)}
 
-/* ── PRIVACY ── */
-body.privacy .sensitive{filter:blur(8px);user-select:none;transition:filter .2s}
+/* ── PRIVACY — blur only monetary amounts, not % badges ── */
+body.privacy .sensitive{filter:blur(7px);user-select:none;transition:filter .2s}
 body.privacy .sensitive:hover{filter:blur(0)}
+body.privacy .badge{filter:none!important} /* percentages always visible */
 .sensitive{transition:filter .2s}
 
 /* ── FREEDOM CARD ── */
@@ -313,6 +314,7 @@ body.privacy .sensitive:hover{filter:blur(0)}
       <button class="nav-item active" onclick="showPage('dashboard')"><span class="nav-icon">◈</span>Dashboard</button>
       <button class="nav-item" onclick="showPage('analisis')"><span class="nav-icon">◐</span>Análisis</button>
       <button class="nav-item" onclick="showPage('historial')"><span class="nav-icon">▦</span>Historial</button>
+      <button class="nav-item" onclick="showPage('independencia')"><span class="nav-icon">🎯</span>Independencia</button>
       <div class="nav-label" style="margin-top:8px">Entradas</div>
       <button class="nav-item" onclick="showPage('nuevo-mes')"><span class="nav-icon">＋</span>Nuevo mes</button>
       <button class="nav-item" onclick="showPage('inversiones')"><span class="nav-icon">◎</span>Inversiones</button>
@@ -341,11 +343,29 @@ body.privacy .sensitive:hover{filter:blur(0)}
 
     <!-- DASHBOARD -->
     <section class="page active" id="page-dashboard">
+      <!-- Racha banner -->
+      <div id="racha-banner" style="display:none;margin-bottom:14px"></div>
       <div class="kpi-grid">
-        <div class="kpi-card blue"><div class="kpi-label">Patrimonio total</div><div class="kpi-value sensitive" id="kpi-patrimonio">—</div><div class="kpi-sub sensitive"><span id="kpi-patrimonio-badge"></span><span id="kpi-patrimonio-sub"></span></div></div>
-        <div class="kpi-card green"><div class="kpi-label">Saldo cuentas</div><div class="kpi-value sensitive" id="kpi-saldo">—</div><div class="kpi-sub sensitive" id="kpi-saldo-sub"></div></div>
-        <div class="kpi-card amber"><div class="kpi-label">Cartera inversiones</div><div class="kpi-value sensitive" id="kpi-cartera">—</div><div class="kpi-sub sensitive" id="kpi-cartera-sub"></div></div>
-        <div class="kpi-card purple"><div class="kpi-label">Plan de pensiones</div><div class="kpi-value sensitive" id="kpi-pp">—</div><div class="kpi-sub sensitive" id="kpi-pp-sub"></div></div>
+        <div class="kpi-card blue">
+          <div class="kpi-label">Patrimonio total</div>
+          <div class="kpi-value sensitive" id="kpi-patrimonio">—</div>
+          <div class="kpi-sub"><span id="kpi-patrimonio-badge"></span><span id="kpi-patrimonio-sub" style="color:var(--text-muted)"></span></div>
+        </div>
+        <div class="kpi-card green">
+          <div class="kpi-label">Patrimonio líquido</div>
+          <div class="kpi-value sensitive" id="kpi-liquido">—</div>
+          <div class="kpi-sub sensitive" id="kpi-liquido-sub"></div>
+        </div>
+        <div class="kpi-card amber">
+          <div class="kpi-label">Saldo cuentas</div>
+          <div class="kpi-value sensitive" id="kpi-saldo">—</div>
+          <div class="kpi-sub sensitive" id="kpi-saldo-sub"></div>
+        </div>
+        <div class="kpi-card purple">
+          <div class="kpi-label">Cartera · TWRR</div>
+          <div class="kpi-value sensitive" id="kpi-cartera">—</div>
+          <div class="kpi-sub" id="kpi-cartera-sub"></div>
+        </div>
       </div>
       <div class="kpi-grid-3" id="kpi-extra"></div>
       <div class="chart-grid">
@@ -353,13 +373,12 @@ body.privacy .sensitive:hover{filter:blur(0)}
         <div class="card"><div class="card-header"><div class="card-title">Objetivos año en curso</div></div><div class="card-body sensitive"><div id="progress-section"></div></div></div>
       </div>
       <div class="card"><div class="card-header"><div class="card-title">Últimos 6 meses</div></div>
-        <div class="table-wrap sensitive"><table><thead><tr><th>Mes</th><th class="right">Ahorro</th><th class="right hide-mobile">Saldo</th><th class="right">Cartera</th><th class="right hide-mobile">PP</th><th class="right">Patrimonio</th><th class="right hide-mobile">Rent.</th><th class="right hide-mobile">TWRR</th></tr></thead><tbody id="table-recent"></tbody></table></div>
+        <div class="table-wrap sensitive"><table><thead><tr><th>Mes</th><th class="right">Ahorro</th><th class="right hide-mobile">Saldo</th><th class="right">Cartera</th><th class="right hide-mobile">Líquido</th><th class="right">Patrimonio</th><th class="right hide-mobile">TWRR</th></tr></thead><tbody id="table-recent"></tbody></table></div>
       </div>
     </section>
 
     <!-- ANÁLISIS -->
     <section class="page" id="page-analisis">
-      <div class="freedom-card sensitive" id="freedom-card"></div>
       <div class="insights-grid sensitive" id="insights-grid"></div>
       <div class="chart-grid sensitive" style="margin-bottom:18px">
         <div class="card"><div class="card-header"><div class="card-title">Rentabilidad mes a mes (%)</div></div><div class="card-body" style="padding:10px 14px 14px"><canvas id="chart-rent" height="190"></canvas></div></div>
@@ -369,6 +388,7 @@ body.privacy .sensitive:hover{filter:blur(0)}
         <div class="card"><div class="card-header"><div class="card-title">Comparativa año a año</div></div><div class="card-body" style="padding:10px 14px 14px"><canvas id="chart-yoy" height="190"></canvas></div></div>
         <div class="card"><div class="card-header"><div class="card-title">Composición patrimonio</div></div><div class="card-body" style="padding:10px 14px 14px"><canvas id="chart-donut" height="190"></canvas></div></div>
       </div>
+      <div class="card sensitive" style="margin-bottom:16px"><div class="card-header"><div class="card-title">Distribución del crecimiento: tú vs mercado</div><span class="twrr-tag">mes a mes</span></div><div class="card-body" style="padding:10px 14px 14px"><canvas id="chart-growth" height="190"></canvas></div></div>
       <div class="card sensitive"><div class="card-header"><div class="card-title">Proyección a fin de año</div><span class="twrr-tag">estimado</span></div><div class="card-body"><div id="projection-section"></div></div></div>
     </section>
 
@@ -459,6 +479,11 @@ body.privacy .sensitive:hover{filter:blur(0)}
           <button class="btn btn-primary" onclick="addObjective()">Añadir</button>
         </div>
       </div>
+    </section>
+
+    <!-- INDEPENDENCIA FINANCIERA -->
+    <section class="page" id="page-independencia">
+      <div id="if-content"></div>
     </section>
 
     <!-- AJUSTES -->
@@ -649,7 +674,7 @@ function closeMobileNav(){document.getElementById('sidebar').classList.remove('o
 // ═══════════════════════════════════════════════
 // NAV
 // ═══════════════════════════════════════════════
-const PAGE_TITLES={dashboard:'Dashboard',analisis:'Análisis',historial:'Historial','nuevo-mes':'Nuevo mes',inversiones:'Inversiones',objetivos:'Objetivos',ajustes:'Ajustes'};
+const PAGE_TITLES={dashboard:'Dashboard',analisis:'Análisis',historial:'Historial',independencia:'Independencia Financiera','nuevo-mes':'Nuevo mes',inversiones:'Inversiones',objetivos:'Objetivos',ajustes:'Ajustes'};
 function showPage(id){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
@@ -660,6 +685,7 @@ function showPage(id){
   if(id==='dashboard')renderDashboard();
   if(id==='analisis')renderAnalisis();
   if(id==='historial')renderHistorial();
+  if(id==='independencia')renderIndependencia();
   if(id==='nuevo-mes')initNuevoMes();
   if(id==='inversiones')renderInvestments();
   if(id==='objetivos')renderObjetivos();
@@ -668,49 +694,115 @@ function showPage(id){
 function showToast(msg='✓ Guardado'){const t=document.getElementById('toast');t.textContent=msg;t.style.display='block';setTimeout(()=>t.style.display='none',2400)}
 
 // ═══════════════════════════════════════════════
+// RACHA — consecutive positive saving months
+// ═══════════════════════════════════════════════
+function calcRacha(){
+  const sm=sortedMonths();
+  let racha=0;
+  for(let i=sm.length-1;i>=0;i--){
+    if((sm[i].ahorro_mes||0)>0)racha++;
+    else break;
+  }
+  return racha;
+}
+
+// ═══════════════════════════════════════════════
 // DASHBOARD
 // ═══════════════════════════════════════════════
 function renderDashboard(){
   const sm=sortedMonths();if(!sm.length)return;
   const last=sm[sm.length-1],prev=sm.length>1?sm[sm.length-2]:null;
-  const pat=patrimonio(last),patPrev=prev?patrimonio(prev):null,diff=patPrev!==null?pat-patPrev:null;
-  const rent=rentabilidad(last),twrr=calcTWRR(last.year,last.month);
 
+  // Patrimonio total vs líquido
+  const pat=patrimonio(last);
+  const liquido=(last.saldo_cuentas||0)+(last.valor_cartera||0); // sin PP
+  const patPrev=prev?patrimonio(prev):null;
+  const liquidoPrev=prev?(prev.saldo_cuentas||0)+(prev.valor_cartera||0):null;
+  const diffPat=patPrev!==null?pat-patPrev:null;
+  const diffLiq=liquidoPrev!==null?liquido-liquidoPrev:null;
+  const pctPat=patPrev&&patPrev>0?((pat-patPrev)/patPrev):null;
+  const pctLiq=liquidoPrev&&liquidoPrev>0?((liquido-liquidoPrev)/liquidoPrev):null;
+
+  // Saldo
+  const saldoPrev=prev?prev.saldo_cuentas:null;
+  const pctSaldo=saldoPrev&&saldoPrev>0?((last.saldo_cuentas-saldoPrev)/saldoPrev):null;
+
+  // TWRR only (no simple rent)
+  const twrr=calcTWRR(last.year,last.month);
+
+  // PP rent
+  const totalPP=totalPPHasta(last.year,last.month);
+  const rentPP=totalPP>0&&last.valor_pp?((last.valor_pp-totalPP)/totalPP):null;
+
+  // KPI — Patrimonio total
   document.getElementById('kpi-patrimonio').textContent=fmt(pat);
-  if(diff!==null){const cls=diff>=0?'badge-green':'badge-red';document.getElementById('kpi-patrimonio-badge').innerHTML=`<span class="badge ${cls}">${diff>=0?'+':''}${fmt(diff)}</span>`;document.getElementById('kpi-patrimonio-sub').textContent=`vs ${prev.label}`}
-  document.getElementById('kpi-saldo').textContent=fmt(last.saldo_cuentas);
-  document.getElementById('kpi-saldo-sub').textContent=`Ahorro mes: ${last.ahorro_mes>=0?'+':''}${fmt(last.ahorro_mes)}`;
-  document.getElementById('kpi-cartera').textContent=fmt(last.valor_cartera);
-  if(rent!==null){const c=rent>=0?'badge-green':'badge-red';document.getElementById('kpi-cartera-sub').innerHTML=`<span class="badge ${c}">${fmtPct(rent)}</span>${twrr!==null?` · TWRR <span class="badge ${twrr>=0?'badge-purple':'badge-red'}">${fmtPct(twrr)}</span>`:''}`}
-  document.getElementById('kpi-pp').textContent=fmt(last.valor_pp);
-  const totalPP=totalPPHasta(last.year,last.month),rentPP=totalPP>0&&last.valor_pp?((last.valor_pp-totalPP)/totalPP):null;
-  document.getElementById('kpi-pp-sub').innerHTML=`${fmt(totalPP)} aportado${rentPP!==null?` · <span class="badge ${rentPP>=0?'badge-green':'badge-red'}">${fmtPct(rentPP)}</span>`:''}`;
+  if(diffPat!==null){
+    const cls=diffPat>=0?'badge-green':'badge-red';
+    document.getElementById('kpi-patrimonio-badge').innerHTML=`<span class="badge ${cls}">${diffPat>=0?'+':''}${fmt(diffPat)}</span>`;
+  }
+  document.getElementById('kpi-patrimonio-sub').innerHTML=pctPat!==null
+    ?`<span class="${numClass(pctPat)}">${pctPat>=0?'+':''}${fmtPct(pctPat)}</span> vs ${prev.label}`
+    :'';
 
-  // Extra KPIs: tasa ahorro, tasa ahorro %, cuenta atrás
+  // KPI — Patrimonio líquido
+  document.getElementById('kpi-liquido').textContent=fmt(liquido);
+  document.getElementById('kpi-liquido-sub').innerHTML=
+    `<span style="color:var(--text-dim);font-size:10.5px">PP (bloqueado): </span><span class="sensitive">${fmt(last.valor_pp)}</span>`+
+    (pctLiq!==null?` &nbsp;<span class="${numClass(pctLiq)}">${pctLiq>=0?'+':''}${fmtPct(pctLiq)}</span>`:'');
+
+  // KPI — Saldo cuentas
+  document.getElementById('kpi-saldo').textContent=fmt(last.saldo_cuentas);
+  document.getElementById('kpi-saldo-sub').innerHTML=
+    `<span class="${numClass(last.ahorro_mes)}">${last.ahorro_mes>=0?'+':''}${fmt(last.ahorro_mes)}</span> este mes`+
+    (pctSaldo!==null?` &nbsp;<span class="${numClass(pctSaldo)}">${pctSaldo>=0?'+':''}${fmtPct(pctSaldo)}</span>`:'');
+
+  // KPI — Cartera (TWRR only)
+  document.getElementById('kpi-cartera').textContent=fmt(last.valor_cartera);
+  document.getElementById('kpi-cartera-sub').innerHTML=
+    twrr!==null
+      ?`TWRR <span class="badge ${twrr>=0?'badge-purple':'badge-red'}">${fmtPct(twrr)}</span>`+
+       (rentPP!==null?` &nbsp;PP <span class="${numClass(rentPP)}">${fmtPct(rentPP)}</span>`:'')
+      :'Sin datos TWRR aún';
+
+  // Extra KPIs
   const sueldo=settings.sueldo;
   const tasaAhorro=sueldo&&sueldo>0&&last.ahorro_mes?last.ahorro_mes/sueldo:null;
   const capitalNecesario=settings.gasto*12/(settings.tasa/100);
-  const totalInv=totalInvertidoHasta(last.year,last.month);
-  const totalActivos=pat;
-  const pctLibertad=capitalNecesario>0?(totalActivos/capitalNecesario):null;
-  const faltaLibertad=Math.max(0,capitalNecesario-totalActivos);
-
+  const pctLibertad=capitalNecesario>0?(pat/capitalNecesario):null;
+  const faltaLibertad=Math.max(0,capitalNecesario-pat);
   document.getElementById('kpi-extra').innerHTML=`
     <div class="kpi-card" style="border-top:2px solid #06d6a0">
       <div class="kpi-label">Tasa de ahorro</div>
-      <div class="kpi-value sensitive" style="font-size:22px">${tasaAhorro!==null?fmtPct(tasaAhorro):'—'}</div>
-      <div class="kpi-sub sensitive">${sueldo?`${fmt(last.ahorro_mes)} de ${fmt(sueldo)}`:'Configura sueldo en Ajustes'}</div>
+      <div class="kpi-value" style="font-size:22px">${tasaAhorro!==null?fmtPct(tasaAhorro):'—'}</div>
+      <div class="kpi-sub sensitive">${sueldo?`<span class="sensitive">${fmt(last.ahorro_mes)}</span> de <span class="sensitive">${fmt(sueldo)}</span>`:'Configura sueldo en Ajustes'}</div>
     </div>
-    <div class="kpi-card" style="border-top:2px solid var(--purple)">
-      <div class="kpi-label">Capital para IF</div>
-      <div class="kpi-value sensitive" style="font-size:22px">${fmt(capitalNecesario)}</div>
-      <div class="kpi-sub sensitive">${settings.gasto ? `${fmt(settings.gasto)}/mes · regla ${settings.tasa}%` : 'Configura en Ajustes'}</div>
+    <div class="kpi-card" style="border-top:2px solid var(--accent);cursor:pointer" onclick="showPage('independencia')">
+      <div class="kpi-label">% hacia IF ↗</div>
+      <div class="kpi-value" style="font-size:22px;color:${pctLibertad!==null&&pctLibertad>=1?'var(--green)':'var(--text)'}">${pctLibertad!==null?fmtPct(pctLibertad):'—'}</div>
+      <div class="kpi-sub sensitive">${faltaLibertad>0?`Faltan <span class="sensitive">${fmt(faltaLibertad)}</span>`:'🎉 ¡Logrado!'}</div>
     </div>
-    <div class="kpi-card" style="border-top:2px solid ${pctLibertad!==null&&pctLibertad>=1?'var(--green)':'var(--amber)'}">
-      <div class="kpi-label">% hacia IF</div>
-      <div class="kpi-value sensitive" style="font-size:22px;color:${pctLibertad!==null&&pctLibertad>=1?'var(--green)':'var(--text)'}">${pctLibertad!==null?fmtPct(pctLibertad):'—'}</div>
-      <div class="kpi-sub sensitive">${faltaLibertad>0?`Faltan ${fmt(faltaLibertad)}`:'🎉 ¡Objetivo alcanzado!'}</div>
+    <div class="kpi-card" style="border-top:2px solid var(--amber)">
+      <div class="kpi-label">Racha ahorro positivo</div>
+      <div class="kpi-value" style="font-size:22px" id="kpi-racha-val">—</div>
+      <div class="kpi-sub" id="kpi-racha-sub"></div>
     </div>`;
+
+  // Racha
+  const racha=calcRacha();
+  document.getElementById('kpi-racha-val').textContent=racha>0?`${racha} mes${racha>1?'es':''}` :'0 meses';
+  document.getElementById('kpi-racha-sub').textContent=racha>=3?'🔥 ¡Buena racha!':racha>0?'Sigue así':'Rompe la racha negativa';
+
+  // Racha banner
+  const banner=document.getElementById('racha-banner');
+  if(racha>=6){
+    banner.style.display='block';
+    banner.innerHTML=`<div class="alert alert-success">🔥 <strong>¡${racha} meses seguidos ahorrando positivo!</strong> Eso es consistencia de verdad.</div>`;
+  } else if(racha===0&&sm.length>1){
+    banner.style.display='block';
+    banner.innerHTML=`<div class="alert alert-warning">⚠ Este mes el ahorro fue negativo. Vuelves a empezar la racha el próximo mes.</div>`;
+  } else {
+    banner.style.display='none';
+  }
 
   const ls=localStorage.getItem('pat_lastSave');
   if(ls)document.getElementById('last-update').textContent=`Actualiz. ${new Date(ls).toLocaleDateString('es-ES')}`;
@@ -744,17 +836,17 @@ function renderDashboard(){
   const patChanges=sm.slice(1).map((m,i)=>patrimonio(m)-patrimonio(sm[i]));
   const maxChange=Math.max(...patChanges),minChange=Math.min(...patChanges);
   document.getElementById('table-recent').innerHTML=recent.map(m=>{
-    const p=patrimonio(m),r=rentabilidad(m),tw=calcTWRR(m.year,m.month);
+    const p=patrimonio(m),tw=calcTWRR(m.year,m.month);
     const idx=sm.indexOf(m);const change=idx>0?p-patrimonio(sm[idx-1]):null;
     const isBest=change===maxChange,isWorst=change===minChange&&change<0;
+    const liq=(m.saldo_cuentas||0)+(m.valor_cartera||0);
     return`<tr>
       <td class="label-cell">${m.label}${isBest?'<span class="badge badge-green" style="margin-left:5px;font-size:9px">mejor</span>':isWorst?'<span class="badge badge-red" style="margin-left:5px;font-size:9px">peor</span>':''}</td>
       <td class="right ${numClass(m.ahorro_mes)}">${fmt(m.ahorro_mes)}</td>
-      <td class="right hide-mobile">${fmt(m.saldo_cuentas)}</td>
-      <td class="right">${fmt(m.valor_cartera)}</td>
-      <td class="right hide-mobile">${fmt(m.valor_pp)}</td>
-      <td class="right" style="font-weight:600">${fmt(p)}</td>
-      <td class="right hide-mobile ${r!==null?numClass(r):''}">${r!==null?fmtPct(r):'—'}</td>
+      <td class="right hide-mobile sensitive">${fmt(m.saldo_cuentas)}</td>
+      <td class="right sensitive">${fmt(m.valor_cartera)}</td>
+      <td class="right hide-mobile sensitive">${fmt(liq)}</td>
+      <td class="right sensitive" style="font-weight:600">${fmt(p)}</td>
       <td class="right hide-mobile ${tw!==null?numClass(tw):''}">${tw!==null?fmtPct(tw):'—'}</td>
     </tr>`;
   }).join('');
@@ -797,7 +889,158 @@ function renderAnalisis(){
     <div class="insight-card"><div class="insight-title">Mejor mes</div><div class="insight-val num-pos">+${fmt(best.change)}</div><div class="insight-sub">${best.label}</div></div>
     <div class="insight-card"><div class="insight-title">Peor mes</div><div class="insight-val num-neg">${fmt(worst.change)}</div><div class="insight-sub">${worst.label}</div></div>`;
 
-  setTimeout(()=>{drawRentChart(sm);drawActivosChart();drawYoYChart(sm);drawDonut(last);renderProjection(sm,last)},50);
+  setTimeout(()=>{drawRentChart(sm);drawActivosChart();drawYoYChart(sm);drawDonut(last);drawGrowthChart(sm);renderProjection(sm,last)},50);
+}
+
+// ═══════════════════════════════════════════════
+// INDEPENDENCIA FINANCIERA PAGE
+// ═══════════════════════════════════════════════
+function renderIndependencia(){
+  const sm=sortedMonths();if(!sm.length)return;
+  const last=sm[sm.length-1];
+  const pat=patrimonio(last);
+  const capitalNecesario=settings.gasto*12/(settings.tasa/100);
+  const pctIF=capitalNecesario>0?pat/capitalNecesario:null;
+  const falta=Math.max(0,capitalNecesario-pat);
+
+  // Project years to IF at current avg monthly saving rate
+  const avgAhorroMes=sm.length>1?sm.reduce((s,m)=>s+(m.ahorro_mes||0),0)/sm.length:0;
+  const twrr=calcTWRR(last.year,last.month);
+  const rentMensual=twrr!==null?Math.pow(1+twrr,1/Math.max(sm.length-1,1))-1:0.005;
+
+  // Simulate months until IF
+  let sim=pat,meses=0;
+  while(sim<capitalNecesario&&meses<600){sim=sim*(1+rentMensual)+avgAhorroMes;meses++}
+  const aniosIF=meses>0?meses/12:null;
+  const yearIF=aniosIF!==null?new Date().getFullYear()+Math.ceil(aniosIF):null;
+
+  // Build year-by-year projection for chart
+  const projYears=[];let simV=pat;
+  for(let y=0;y<=Math.min(Math.ceil(aniosIF||30)+2,40);y++){
+    projYears.push({year:new Date().getFullYear()+y,val:simV});
+    for(let m=0;m<12;m++)simV=simV*(1+rentMensual)+avgAhorroMes;
+    if(simV>capitalNecesario*2)break;
+  }
+
+  document.getElementById('if-content').innerHTML=`
+    <div class="freedom-card" style="margin-bottom:20px">
+      <div class="freedom-title">🎯 Independencia Financiera — Cuenta atrás</div>
+      <div class="freedom-grid" style="margin-bottom:14px">
+        <div class="freedom-item"><div class="freedom-val sensitive">${fmt(capitalNecesario)}</div><div class="freedom-lbl">Capital objetivo</div></div>
+        <div class="freedom-item"><div class="freedom-val" style="color:${pctIF>=1?'var(--green)':'var(--accent)'}">${pctIF!==null?fmtPct(pctIF):'—'}</div><div class="freedom-lbl">Progreso</div></div>
+        <div class="freedom-item"><div class="freedom-val sensitive">${fmt(falta)}</div><div class="freedom-lbl">Aún falta</div></div>
+      </div>
+      <div class="progress-track" style="height:10px;margin-bottom:10px"><div class="progress-fill" style="width:${Math.min((pctIF||0)*100,100)}%;background:linear-gradient(90deg,var(--accent),var(--purple))"></div></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px">
+        <div style="text-align:center;padding:12px;background:rgba(0,0,0,.15);border-radius:8px">
+          <div style="font-size:22px;font-weight:700;font-family:var(--mono);color:var(--amber)">${yearIF?yearIF:'—'}</div>
+          <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;margin-top:2px">Año estimado IF</div>
+        </div>
+        <div style="text-align:center;padding:12px;background:rgba(0,0,0,.15);border-radius:8px">
+          <div style="font-size:22px;font-weight:700;font-family:var(--mono);color:var(--green)">${aniosIF?aniosIF.toFixed(1)+'a':'—'}</div>
+          <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;margin-top:2px">Años restantes</div>
+        </div>
+      </div>
+    </div>
+    <div class="grid-2" style="margin-bottom:16px">
+      <div class="card"><div class="card-header"><div class="card-title">Proyección de patrimonio hacia IF</div></div><div class="card-body" style="padding:10px 14px 14px"><canvas id="chart-if-proj" height="200"></canvas></div></div>
+      <div class="card"><div class="card-body">
+        <div class="section-title" style="margin-top:0">Supuestos del cálculo</div>
+        <div style="display:grid;gap:10px;font-size:13px">
+          <div style="display:flex;justify-content:space-between"><span style="color:var(--text-muted)">Gasto mensual objetivo</span><span class="sensitive" style="font-family:var(--mono)">${fmt(settings.gasto)}</span></div>
+          <div style="display:flex;justify-content:space-between"><span style="color:var(--text-muted)">Tasa de retiro anual</span><span style="font-family:var(--mono)">${settings.tasa}%</span></div>
+          <div style="display:flex;justify-content:space-between"><span style="color:var(--text-muted)">Ahorro medio mensual</span><span class="sensitive" style="font-family:var(--mono)">${fmt(avgAhorroMes)}</span></div>
+          <div style="display:flex;justify-content:space-between"><span style="color:var(--text-muted)">Rentab. mensual est.</span><span style="font-family:var(--mono)">${fmtPct(rentMensual)}</span></div>
+          <div style="display:flex;justify-content:space-between"><span style="color:var(--text-muted)">Patrimonio actual</span><span class="sensitive" style="font-family:var(--mono)">${fmt(pat)}</span></div>
+        </div>
+        <div class="divider"></div>
+        <div class="alert alert-info" style="font-size:11.5px;margin-bottom:0">Ajusta tus metas en <b>Ajustes</b>. La proyección se actualiza sola cada mes que introduces datos.</div>
+        <div style="margin-top:12px"><button class="btn btn-ghost" style="width:100%;justify-content:center" onclick="showPage('ajustes')">⚙ Configurar metas</button></div>
+      </div></div>
+    </div>`;
+
+  // Draw IF projection chart
+  setTimeout(()=>{
+    const r=setupCanvas('chart-if-proj',200);if(!r)return;
+    const{ctx,W,H}=r;
+    const PAD={top:14,right:20,bottom:32,left:65};
+    const CW=W-PAD.left-PAD.right,CH=H-PAD.top-PAD.bottom;
+    const vals=projYears.map(p=>p.val);
+    const maxV=Math.max(...vals,capitalNecesario)*1.05;
+    const xP=i=>PAD.left+(i/(projYears.length-1||1))*CW;
+    const yP=v=>PAD.top+(1-v/maxV)*CH;
+    ctx.clearRect(0,0,W,H);
+    // IF line
+    ctx.strokeStyle='rgba(247,184,79,.5)';ctx.lineWidth=1;ctx.setLineDash([5,4]);
+    ctx.beginPath();ctx.moveTo(PAD.left,yP(capitalNecesario));ctx.lineTo(W-PAD.right,yP(capitalNecesario));ctx.stroke();ctx.setLineDash([]);
+    ctx.fillStyle='rgba(247,184,79,.7)';ctx.font='9px Inter,sans-serif';ctx.textAlign='right';
+    ctx.fillText('IF',PAD.left-3,yP(capitalNecesario)+3);
+    // Area
+    ctx.beginPath();ctx.moveTo(xP(0),PAD.top+CH);
+    projYears.forEach((p,i)=>ctx.lineTo(xP(i),yP(p.val)));
+    ctx.lineTo(xP(projYears.length-1),PAD.top+CH);ctx.closePath();
+    ctx.fillStyle='rgba(79,142,247,.1)';ctx.fill();
+    // Line
+    ctx.beginPath();ctx.strokeStyle='#4f8ef7';ctx.lineWidth=2.5;ctx.lineJoin='round';ctx.setLineDash([]);
+    projYears.forEach((p,i)=>i===0?ctx.moveTo(xP(i),yP(p.val)):ctx.lineTo(xP(i),yP(p.val)));ctx.stroke();
+    // Grid
+    for(let i=0;i<=4;i++){const v=maxV/4*i;const y=yP(v);ctx.strokeStyle='rgba(122,133,163,.12)';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(PAD.left,y);ctx.lineTo(W-PAD.right,y);ctx.stroke();ctx.fillStyle='rgba(122,133,163,.6)';ctx.font='10px JetBrains Mono,monospace';ctx.textAlign='right';ctx.fillText((v/1000).toFixed(0)+'k€',PAD.left-4,y+3)}
+    // X labels
+    ctx.fillStyle='rgba(122,133,163,.7)';ctx.font='9px Inter,sans-serif';ctx.textAlign='center';
+    const skip=Math.ceil(projYears.length/6);
+    projYears.forEach((p,i)=>{if(i%skip===0||i===projYears.length-1)ctx.fillText(p.year,xP(i),H-6)});
+  },60);
+}
+
+function drawGrowthChart(sm){
+  const r=setupCanvas('chart-growth',190);if(!r)return;
+  const{ctx,W,H}=r;
+  if(sm.length<2)return;
+  const PAD={top:14,right:16,bottom:32,left:62};
+  const CW=W-PAD.left-PAD.right,CH=H-PAD.top-PAD.bottom;
+
+  // For each month, split growth into: ahorro (what you put in) vs mercado (what investments gained)
+  const data=sm.slice(1).map((m,i)=>{
+    const prev=sm[i];
+    const totalChange=patrimonio(m)-patrimonio(prev);
+    const ahorroPart=m.ahorro_mes||0; // your contribution
+    const mercadoPart=totalChange-ahorroPart; // rest = market / PP growth
+    return{label:m.label,ahorro:ahorroPart,mercado:mercadoPart,total:totalChange};
+  });
+
+  const allV=data.flatMap(d=>[d.ahorro,d.mercado,d.total,0]);
+  const maxV=Math.max(...allV)*1.1,minV=Math.min(...allV,0)*1.1;
+  const range=maxV-minV||1;
+  const xP=i=>PAD.left+(i/(data.length-1||1))*CW;
+  const yP=v=>PAD.top+(1-(v-minV)/range)*CH;
+  const bw=Math.max(4,CW/data.length*0.35);
+
+  ctx.clearRect(0,0,W,H);
+  // Zero line
+  ctx.strokeStyle='rgba(122,133,163,.3)';ctx.lineWidth=1;ctx.setLineDash([3,3]);
+  ctx.beginPath();ctx.moveTo(PAD.left,yP(0));ctx.lineTo(W-PAD.right,yP(0));ctx.stroke();ctx.setLineDash([]);
+
+  // Bars
+  data.forEach((d,i)=>{
+    const x=xP(i);const baseY=yP(0);
+    // Ahorro bar
+    if(d.ahorro!==0){const h=Math.abs(yP(d.ahorro)-baseY);ctx.fillStyle=d.ahorro>=0?'rgba(79,142,247,.8)':'rgba(247,95,95,.6)';ctx.fillRect(x-bw-1,d.ahorro>=0?yP(d.ahorro):baseY,bw,h||2)}
+    // Mercado bar
+    if(d.mercado!==0){const h=Math.abs(yP(d.mercado)-baseY);ctx.fillStyle=d.mercado>=0?'rgba(48,217,136,.8)':'rgba(247,95,95,.5)';ctx.fillRect(x+1,d.mercado>=0?yP(d.mercado):baseY,bw,h||2)}
+  });
+
+  ctx.fillStyle='rgba(122,133,163,.7)';ctx.font='9px Inter,sans-serif';ctx.textAlign='center';
+  const skip=data.length>10?2:1;
+  data.forEach((d,i)=>{if(i%skip===0||i===data.length-1)ctx.fillText(d.label,xP(i),H-6)});
+  ctx.textAlign='right';ctx.font='10px JetBrains Mono,monospace';
+  [minV,0,maxV].forEach(v=>{ctx.fillText((v/1000).toFixed(1)+'k€',PAD.left-3,yP(v)+3)});
+
+  // Legend
+  const lx=PAD.left,ly=6;
+  ctx.fillStyle='rgba(79,142,247,.8)';ctx.fillRect(lx,ly,8,8);
+  ctx.fillStyle='rgba(122,133,163,.8)';ctx.font='9px Inter,sans-serif';ctx.textAlign='left';ctx.fillText('Tu ahorro',lx+11,ly+7);
+  ctx.fillStyle='rgba(48,217,136,.8)';ctx.fillRect(lx+80,ly,8,8);
+  ctx.fillStyle='rgba(122,133,163,.8)';ctx.fillText('Mercado/PP',lx+91,ly+7);
 }
 
 function renderProjection(sm,last){

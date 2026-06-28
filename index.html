@@ -742,12 +742,18 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
 // Cliente Supabase. OJO: nunca pegues aquí la service_role key.
 const sb = window.supabase?.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
+  auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }
 });
 
+// Identificador de dispositivo (anon, sin login)
+function getDeviceId(){
+  let id = localStorage.getItem('pat_device_id');
+  if(!id){ id = crypto.randomUUID(); localStorage.setItem('pat_device_id', id); }
+  return id;
+}
+const DEVICE_ID = getDeviceId();
+
 let cloudReady = false;
-let currentUser = null;
-let authResolver = null;
 let remoteSaveTimer = null;
 let applyingRemoteChange = false;
 
@@ -837,108 +843,26 @@ function supabaseConfigured(){
   return !!(sb && SUPABASE_URL && SUPABASE_ANON_KEY && !SUPABASE_ANON_KEY.includes('PEGA_AQUI'));
 }
 
-function showAuthModal(){
-  if(document.getElementById('auth-overlay')) return;
-  document.body.insertAdjacentHTML('beforeend', `
-    <div class="modal-overlay open" id="auth-overlay" style="z-index:300">
-      <div class="modal" onclick="event.stopPropagation()">
-        <div class="modal-title">Acceso a Patrimonio</div>
-        <div class="alert alert-info" style="font-size:12px">
-          Inicia sesión para sincronizar tus datos con Supabase en todos tus dispositivos.
-        </div>
-        <div class="form-grid">
-          <div class="form-group full">
-            <label>Email</label>
-            <input id="auth-email" type="email" placeholder="tu@email.com" style="font-family:var(--sans)">
-          </div>
-          <div class="form-group full">
-            <label>Contraseña</label>
-            <input id="auth-pass" type="password" placeholder="mínimo 6 caracteres" style="font-family:var(--sans)">
-          </div>
-        </div>
-        <div id="auth-msg" style="font-size:12px;color:var(--text-muted);margin-top:10px;min-height:18px"></div>
-        <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap">
-          <button class="btn btn-primary" style="flex:1;justify-content:center" onclick="loginSupabase()">Entrar</button>
-          <button class="btn btn-ghost" style="flex:1;justify-content:center" onclick="signupSupabase()">Crear cuenta</button>
-        </div>
-      </div>
-    </div>
-  `);
-}
-
-function removeAuthModal(){
-  const el = document.getElementById('auth-overlay');
-  if(el) el.remove();
-}
-
-function getAuthForm(){
-  const email = document.getElementById('auth-email')?.value.trim();
-  const password = document.getElementById('auth-pass')?.value;
-  const msg = document.getElementById('auth-msg');
-  return {email,password,msg};
-}
-
-async function loginSupabase(){
-  const {email,password,msg} = getAuthForm();
-  if(!email || !password){ if(msg) msg.textContent = 'Introduce email y contraseña.'; return; }
-  if(msg) msg.textContent = 'Entrando...';
-  const { data, error } = await sb.auth.signInWithPassword({ email, password });
-  if(error){ if(msg) msg.textContent = 'Error: ' + error.message; return; }
-  currentUser = data.user;
-  removeAuthModal();
-  if(authResolver) authResolver(data.session);
-}
-
-async function signupSupabase(){
-  const {email,password,msg} = getAuthForm();
-  if(!email || !password){ if(msg) msg.textContent = 'Introduce email y contraseña.'; return; }
-  if(msg) msg.textContent = 'Creando cuenta...';
-  const { data, error } = await sb.auth.signUp({ email, password });
-  if(error){ if(msg) msg.textContent = 'Error: ' + error.message; return; }
-
-  if(data.session){
-    currentUser = data.user;
-    removeAuthModal();
-    if(authResolver) authResolver(data.session);
-  }else{
-    if(msg) msg.textContent = 'Cuenta creada. Revisa tu correo si Supabase pide confirmar el email y luego pulsa Entrar.';
-  }
-}
-
-async function waitForAuth(){
-  const { data } = await sb.auth.getSession();
-  if(data?.session?.user){
-    currentUser = data.session.user;
-    return data.session;
-  }
-  showAuthModal();
-  return new Promise(resolve => { authResolver = resolve; });
-}
-
 async function loadData(){
   const localData = loadLocalData();
 
   if(!supabaseConfigured()){
     setCloudStatus('Modo local');
-    console.warn('Supabase no configurado: pega SUPABASE_ANON_KEY.');
     return localData;
   }
 
   try{
     setCloudStatus('Conectando...');
-    const session = await waitForAuth();
-    currentUser = session.user;
-    cloudReady = true;
-
     const { data, error } = await sb
-      .from('finance_state')
+      .from('patrimonio_data')
       .select('data, updated_at')
-      .eq('user_id', currentUser.id)
+      .eq('device_id', DEVICE_ID)
       .maybeSingle();
 
     if(error) throw error;
+    cloudReady = true;
 
-    // Primera vez: sube lo que ya tenías en localStorage / INITIAL
+    // Primera vez: sube lo que ya tenías en localStorage
     if(!data){
       const initialCloudState = normalizeState({
         version: DATA_VERSION,
@@ -948,8 +872,8 @@ async function loadData(){
         ppAport: localData.ppAport,
         settings: localData.settings
       });
-      await sb.from('finance_state').insert({
-        user_id: currentUser.id,
+      await sb.from('patrimonio_data').insert({
+        device_id: DEVICE_ID,
         data: initialCloudState,
         updated_at: new Date().toISOString()
       });
@@ -976,7 +900,6 @@ async function loadData(){
   }catch(err){
     console.error(err);
     setCloudStatus('Error nube · local');
-    alert('No he podido cargar Supabase. La app usará el backup local. Revisa la tabla, RLS, la anon key o la conexión.\n\n' + err.message);
     return localData;
   }
 }
@@ -985,12 +908,12 @@ function saveData(){
   const state = normalizeState(getCurrentState());
   persistLocalState(state);
 
-  if(applyingRemoteChange || !cloudReady || !currentUser || !supabaseConfigured()) return;
+  if(applyingRemoteChange || !cloudReady || !supabaseConfigured()) return;
 
   clearTimeout(remoteSaveTimer);
   remoteSaveTimer = setTimeout(async()=>{
-    const { error } = await sb.from('finance_state').upsert({
-      user_id: currentUser.id,
+    const { error } = await sb.from('patrimonio_data').upsert({
+      device_id: DEVICE_ID,
       data: state,
       updated_at: new Date().toISOString()
     });
@@ -1009,14 +932,14 @@ function renderCurrentPage(){
 }
 
 function subscribeToCloudChanges(){
-  if(!cloudReady || !currentUser || !supabaseConfigured()) return;
+  if(!cloudReady || !supabaseConfigured()) return;
 
-  sb.channel('finance_state_changes')
+  sb.channel('patrimonio_data_changes')
     .on('postgres_changes', {
       event: '*',
       schema: 'public',
-      table: 'finance_state',
-      filter: `user_id=eq.${currentUser.id}`
+      table: 'patrimonio_data',
+      filter: `device_id=eq.${DEVICE_ID}`
     }, payload => {
       if(!payload.new?.data) return;
       applyingRemoteChange = true;

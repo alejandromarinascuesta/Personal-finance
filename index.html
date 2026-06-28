@@ -116,17 +116,15 @@ canvas{display:block;max-width:100%}
 
 /* ── TABLE ── */
 .table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
-table{width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed}
-thead th{text-align:left;padding:8px 10px;font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--text-dim);border-bottom:1px solid var(--border);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+table{width:100%;border-collapse:collapse;font-size:12px}
+table.fixed{table-layout:fixed}
+thead th{text-align:left;padding:8px 10px;font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--text-dim);border-bottom:1px solid var(--border);white-space:nowrap}
 tbody tr{border-bottom:1px solid var(--border);transition:background .1s}
 tbody tr:hover{background:rgba(79,142,247,.04)}
 tbody tr:last-child{border-bottom:none}
-td{padding:9px 10px;color:var(--text);font-family:var(--mono);font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+td{padding:9px 10px;color:var(--text);font-family:var(--mono);font-size:11.5px;white-space:nowrap}
 td.label-cell{font-family:var(--sans);font-size:12px}
 td.right{text-align:right}
-/* P&L color rows */
-tr.pl-pos td{background:rgba(48,217,136,.04)}
-tr.pl-neg td{background:rgba(247,95,95,.04)}
 
 /* ── FORMS ── */
 .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
@@ -366,18 +364,35 @@ body.privacy .badge{filter:none!important} /* percentages always visible */
           <div class="kpi-sub sensitive" id="kpi-saldo-sub"></div>
         </div>
         <div class="kpi-card purple">
-          <div class="kpi-label">Cartera · TWRR</div>
+          <div class="kpi-label">Cartera inversiones</div>
           <div class="kpi-value sensitive" id="kpi-cartera">—</div>
           <div class="kpi-sub" id="kpi-cartera-sub"></div>
-        </div>
-      </div>
+        </div>      </div>
       <div class="kpi-grid-3" id="kpi-extra"></div>
       <div class="chart-grid">
         <div class="card"><div class="card-header"><div class="card-title">Evolución patrimonial</div><div id="chart-legend" style="display:flex;gap:14px;font-size:11px;color:var(--text-muted)"></div></div><div class="card-body sensitive" style="padding:10px 14px 14px"><canvas id="chart-main" height="210"></canvas></div></div>
         <div class="card"><div class="card-header"><div class="card-title">Objetivos año en curso</div></div><div class="card-body sensitive"><div id="progress-section"></div></div></div>
       </div>
       <div class="card"><div class="card-header"><div class="card-title">Últimos 6 meses</div></div>
-        <div class="table-wrap sensitive"><table><thead><tr><th>Mes</th><th class="right">Ahorro</th><th class="right hide-mobile">Saldo</th><th class="right">Cartera</th><th class="right hide-mobile">Líquido</th><th class="right">Patrimonio</th><th class="right hide-mobile">TWRR</th></tr></thead><tbody id="table-recent"></tbody></table></div>
+        <div class="table-wrap sensitive">
+          <table class="fixed" style="min-width:580px">
+            <colgroup>
+              <col style="width:100px"><col style="width:90px"><col style="width:105px">
+              <col style="width:90px"><col style="width:100px"><col style="width:115px">
+              <col style="width:80px">
+            </colgroup>
+            <thead><tr>
+              <th>Mes</th>
+              <th class="right">Ahorro</th>
+              <th class="right hide-mobile">Saldo</th>
+              <th class="right">Cartera</th>
+              <th class="right hide-mobile">Líquido</th>
+              <th class="right">Patrimonio</th>
+              <th class="right hide-mobile">Rent. real</th>
+            </tr></thead>
+            <tbody id="table-recent"></tbody>
+          </table>
+        </div>
       </div>
     </section>
 
@@ -402,7 +417,7 @@ body.privacy .badge{filter:none!important} /* percentages always visible */
       <div class="card">
         <div class="card-header"><div class="card-title">Todos los registros</div><div style="font-size:12px;color:var(--text-muted)" id="historial-count"></div></div>
         <div class="table-wrap sensitive">
-          <table style="table-layout:fixed;min-width:700px">
+          <table class="fixed" style="min-width:720px">
             <colgroup>
               <col style="width:90px"><col style="width:95px"><col style="width:105px">
               <col style="width:95px"><col style="width:100px"><col style="width:95px">
@@ -447,7 +462,7 @@ body.privacy .badge{filter:none!important} /* percentages always visible */
             <div class="form-group"><label class="auto-label">Total invertido <span style="color:var(--green);font-size:10px">✦ auto</span></label><input type="number" id="form-total-inv" readonly class="auto-field"></div>
             <div class="form-group"><label>Valor cartera hoy (€) <span style="color:var(--accent);font-size:10px">↳ tú lo introduces</span></label><input type="number" id="form-valor-cartera" placeholder="ej. 3500" step="0.01" oninput="updatePreview()"></div>
             <div class="form-group"><label class="auto-label">Rent. inversiones <span style="color:var(--green);font-size:10px">✦</span></label><input type="text" id="form-rent-inv" readonly class="auto-field" placeholder="—"></div>
-            <div class="form-group"><label class="auto-label">TWRR acumulado <span style="color:var(--purple);font-size:10px">✦</span></label><input type="text" id="form-twrr" readonly class="auto-field" style="border-color:rgba(167,139,250,.4)!important;background:rgba(167,139,250,.05)!important" placeholder="—"></div>
+            <div class="form-group"><label class="auto-label">Rentabilidad real <span style="color:var(--purple);font-size:10px">✦</span></label><input type="text" id="form-twrr" readonly class="auto-field" style="border-color:rgba(167,139,250,.4)!important;background:rgba(167,139,250,.05)!important" placeholder="—"></div>
           </div>
           <div class="section-title">🏦 Plan de Pensiones</div>
           <div class="form-grid">
@@ -810,9 +825,9 @@ function renderDashboard(){
   document.getElementById('kpi-cartera').textContent=fmt(last.valor_cartera);
   document.getElementById('kpi-cartera-sub').innerHTML=
     twrr!==null
-      ?`TWRR <span class="badge ${twrr>=0?'badge-purple':'badge-red'}">${fmtPct(twrr)}</span>`+
+      ?`Rent. real <span class="badge ${twrr>=0?'badge-purple':'badge-red'}">${fmtPct(twrr)}</span>`+
        (rentPP!==null?` &nbsp;PP <span class="${numClass(rentPP)}">${fmtPct(rentPP)}</span>`:'')
-      :'Sin datos TWRR aún';
+      :'Sin datos rentabilidad aún';
 
   // Extra KPIs
   const sueldo=settings.sueldo;
@@ -925,7 +940,7 @@ function renderAnalisis(){
 
   document.getElementById('insights-grid').innerHTML=`
     <div class="insight-card">
-      <div class="insight-title">TWRR acumulado <span class="twrr-tag">time-weighted</span></div>
+      <div class="insight-title">Rentabilidad real <span class="twrr-tag">TWRR</span></div>
       <div class="insight-val ${twrr!==null?numClass(twrr):''}">${twrr!==null?fmtPct(twrr):'—'}</div>
       <div class="insight-sub">Rentabilidad real, sin efecto de tus aportaciones</div>
     </div>
@@ -1536,17 +1551,26 @@ function renderInvestments(){
   // ── PnL por activo ──
   const byAsset=pnlByAsset();
   document.getElementById('pnl-by-asset').innerHTML=`
-    <div style="display:grid;gap:6px">
-      <div style="display:grid;grid-template-columns:1fr auto auto auto;gap:8px;padding:5px 8px;font-size:10px;font-weight:600;color:var(--text-dim);text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--border)">
-        <span>Activo</span><span style="text-align:right">Comprado</span><span style="text-align:right">Vendido</span><span style="text-align:right">Neto</span>
-      </div>
-      ${byAsset.map(({asset,invested,sold,netCost})=>`
-        <div style="display:grid;grid-template-columns:1fr auto auto auto;gap:8px;padding:6px 8px;border-radius:7px;background:var(--surface2);align-items:center">
-          <span style="font-size:12px;color:var(--text);font-family:var(--sans);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${asset}">${asset}</span>
-          <span class="sensitive" style="font-family:var(--mono);font-size:11.5px;color:var(--text-muted);text-align:right">${fmt(invested)}</span>
-          <span class="sensitive" style="font-family:var(--mono);font-size:11.5px;color:${sold>0?'var(--red)':'var(--text-dim)'};text-align:right">${sold>0?'-'+fmt(sold):'—'}</span>
-          <span class="sensitive" style="font-family:var(--mono);font-size:11.5px;font-weight:600;color:${netCost>0?'var(--text)':'var(--text-muted)'};text-align:right">${fmt(netCost)}</span>
-        </div>`).join('')}
+    <div class="table-wrap" style="margin-top:4px">
+      <table class="fixed" style="min-width:280px">
+        <colgroup>
+          <col style="width:42%"><col style="width:20%"><col style="width:20%"><col style="width:18%">
+        </colgroup>
+        <thead><tr>
+          <th>Activo</th>
+          <th class="right">Comprado</th>
+          <th class="right">Vendido</th>
+          <th class="right">Neto</th>
+        </tr></thead>
+        <tbody>
+          ${byAsset.map(({asset,invested,sold,netCost})=>`<tr>
+            <td class="label-cell" style="overflow:hidden;text-overflow:ellipsis" title="${asset}">${asset}</td>
+            <td class="right sensitive" style="color:var(--text-muted)">${fmt(invested)}</td>
+            <td class="right sensitive" style="color:${sold>0?'var(--red)':'var(--text-dim)'}">${sold>0?fmt(sold):'—'}</td>
+            <td class="right sensitive" style="font-weight:600;color:${netCost>0?'var(--green)':netCost<0?'var(--red)':'var(--text-muted)'}">${netCost>=0?'+':''}${fmt(netCost)}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
     </div>`;
 }
 function saveInvestment(){

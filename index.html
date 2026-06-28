@@ -312,7 +312,27 @@ body.privacy .badge{filter:none!important} /* percentages always visible */
 <!-- MOBILE OVERLAY -->
 <div class="mobile-overlay" id="mobile-overlay" onclick="closeMobileNav()"></div>
 
-<div class="app">
+
+<!-- AUTH SCREEN -->
+<div id="auth-screen">
+  <div class="auth-card">
+    <div class="auth-logo">💵</div>
+    <div class="auth-title">Patrimonio Personal</div>
+    <div class="auth-sub">Accede a tu tracker financiero</div>
+    <label class="auth-label">Email</label>
+    <input class="auth-input" id="auth-email" type="email" placeholder="tu@email.com" autocomplete="email">
+    <label class="auth-label">Contraseña</label>
+    <input class="auth-input" id="auth-password" type="password" placeholder="••••••••" autocomplete="current-password"
+      onkeydown="if(event.key==='Enter')doAuth()">
+    <button class="auth-btn" id="auth-btn" onclick="doAuth()">Entrar</button>
+    <div class="auth-error" id="auth-error"></div>
+    <div class="auth-toggle" id="auth-toggle">
+      ¿Primera vez? <a onclick="toggleAuthMode()">Crear cuenta</a>
+    </div>
+  </div>
+</div>
+
+<div class="app" id="app-root" style="display:none">
   <!-- SIDEBAR -->
   <aside class="sidebar" id="sidebar">
     <div class="logo">
@@ -346,6 +366,7 @@ body.privacy .badge{filter:none!important} /* percentages always visible */
         <button class="btn-icon" id="btn-theme" onclick="toggleTheme()" title="Cambiar tema">🌙</button>
         <button class="btn btn-ghost btn-sm" onclick="exportData()">⬇ Backup</button>
         <button class="btn btn-ghost btn-sm" onclick="importData()">⬆ Restaurar</button>
+        <button class="btn btn-ghost btn-sm" onclick="doLogout()" title="Cerrar sesión" style="color:var(--red)">⎋ Salir</button>
         <button class="btn btn-primary btn-sm" onclick="showPage('nuevo-mes')">+ Nuevo mes</button>
         <input type="file" id="import-file" accept=".json" style="display:none" onchange="handleImport(event)">
       </div>
@@ -742,16 +763,11 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
 // Cliente Supabase. OJO: nunca pegues aquí la service_role key.
 const sb = window.supabase?.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }
+  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false }
 });
 
-// Identificador de dispositivo (anon, sin login)
-function getDeviceId(){
-  let id = localStorage.getItem('pat_device_id');
-  if(!id){ id = crypto.randomUUID(); localStorage.setItem('pat_device_id', id); }
-  return id;
-}
-const DEVICE_ID = getDeviceId();
+// DEVICE_ID = auth.uid() tras login
+let DEVICE_ID = null;
 
 let cloudReady = false;
 let remoteSaveTimer = null;
@@ -2240,13 +2256,78 @@ function handleImport(e){
 // ═══════════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════════
-document.addEventListener('DOMContentLoaded', async()=>{
-  const savedTheme=localStorage.getItem('pat_theme')||'dark';
-  setTheme(savedTheme);
+// ── AUTH FUNCTIONS ──
+let _authMode = 'login'; // 'login' | 'signup'
+
+function toggleAuthMode(){
+  _authMode = _authMode === 'login' ? 'signup' : 'login';
+  document.getElementById('auth-btn').textContent = _authMode === 'signup' ? 'Crear cuenta' : 'Entrar';
+  document.getElementById('auth-toggle').innerHTML = _authMode === 'signup'
+    ? '¿Ya tienes cuenta? <a onclick="toggleAuthMode()">Iniciar sesión</a>'
+    : '¿Primera vez? <a onclick="toggleAuthMode()">Crear cuenta</a>';
+  document.getElementById('auth-error').textContent = '';
+}
+
+async function doAuth(){
+  const email = document.getElementById('auth-email').value.trim();
+  const pass  = document.getElementById('auth-password').value;
+  const btn   = document.getElementById('auth-btn');
+  const err   = document.getElementById('auth-error');
+  if(!email || !pass){ err.textContent = 'Rellena email y contraseña.'; return; }
+  btn.disabled = true;
+  btn.textContent = 'Cargando…';
+  err.textContent = '';
+  let result;
+  if(_authMode === 'signup'){
+    result = await sb.auth.signUp({ email, password: pass });
+  } else {
+    result = await sb.auth.signInWithPassword({ email, password: pass });
+  }
+  if(result.error){
+    err.textContent = result.error.message;
+    btn.disabled = false;
+    btn.textContent = _authMode === 'signup' ? 'Crear cuenta' : 'Entrar';
+  } else {
+    if(_authMode === 'signup' && result.data?.user?.identities?.length === 0){
+      err.textContent = 'Este email ya está registrado. Inicia sesión.';
+      _authMode = 'login';
+      btn.textContent = 'Entrar';
+      btn.disabled = false;
+      return;
+    }
+    await initApp(result.data.user);
+  }
+}
+
+async function doLogout(){
+  await sb.auth.signOut();
+  DEVICE_ID = null;
+  location.reload();
+}
+
+async function initApp(user){
+  DEVICE_ID = user.id;
+  // Hide auth screen, show app
+  const authScreen = document.getElementById('auth-screen');
+  authScreen.classList.add('hidden');
+  setTimeout(()=>{ authScreen.style.display='none'; }, 320);
+  document.getElementById('app-root').style.display = '';
 
   ({months, investments, objectives, ppAport, settings} = await loadData());
   renderDashboard();
   subscribeToCloudChanges();
+}
+
+document.addEventListener('DOMContentLoaded', async()=>{
+  const savedTheme=localStorage.getItem('pat_theme')||'dark';
+  setTheme(savedTheme);
+
+  // Check for existing session
+  const { data: { session } } = await sb.auth.getSession();
+  if(session?.user){
+    await initApp(session.user);
+  }
+  // else: login screen stays visible
 
   window.addEventListener('resize',()=>{const sm=sortedMonths();if(sm.length)drawMainChart(sm)});
 });

@@ -8,7 +8,6 @@
 <meta property="og:description" content="Seguimiento mensual de finanzas personales e inversiones">
 <meta name="theme-color" content="#181c27">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💵</text></svg>">
-<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💵</text></svg>">
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 
@@ -663,23 +662,51 @@ const INITIAL_PP=[
 ];
 
 // ═══════════════════════════════════════════════
-// PERSISTENCE
+// PERSISTENCE — user edits always win
 // ═══════════════════════════════════════════════
+const DATA_VERSION = 4; // bump when INITIAL data changes
+
 function loadData(){
-  return{
-    months:JSON.parse(localStorage.getItem('pat_months')||'null')||INITIAL_MONTHS,
-    investments:JSON.parse(localStorage.getItem('pat_investments')||'null')||INITIAL_INVESTMENTS,
-    objectives:JSON.parse(localStorage.getItem('pat_objectives')||'null')||INITIAL_OBJECTIVES,
-    ppAport:JSON.parse(localStorage.getItem('pat_pp_aport')||'null')||INITIAL_PP,
-    settings:JSON.parse(localStorage.getItem('pat_settings')||'null')||{gasto:2000,tasa:4,sueldo:null},
-  };
+  const savedVersion = parseInt(localStorage.getItem('pat_version')||'0');
+  const storedMonths = JSON.parse(localStorage.getItem('pat_months')||'null');
+  const storedInv = JSON.parse(localStorage.getItem('pat_investments')||'null');
+  const storedObj = JSON.parse(localStorage.getItem('pat_objectives')||'null');
+  const storedPP = JSON.parse(localStorage.getItem('pat_pp_aport')||'null');
+  const storedSettings = JSON.parse(localStorage.getItem('pat_settings')||'null');
+
+  // If we have stored data, always use it (user edits win)
+  // Only use INITIAL as fallback when nothing is stored yet
+  let months = storedMonths || INITIAL_MONTHS;
+  let investments = storedInv || INITIAL_INVESTMENTS;
+  let objectives = storedObj || INITIAL_OBJECTIVES;
+  let ppAport = storedPP || INITIAL_PP;
+  let settings = storedSettings || {gasto:2000,tasa:4,sueldo:null};
+
+  // Version migration: if code updated with new INITIAL months, merge them in
+  // so new months added to INITIAL appear, but user-edited months are untouched
+  if(storedMonths && savedVersion < DATA_VERSION){
+    const userKeys = new Set(storedMonths.map(m=>`${m.year}-${m.month}`));
+    INITIAL_MONTHS.forEach(im=>{
+      if(!userKeys.has(`${im.year}-${im.month}`)){
+        months.push(im); // add new initial months user doesn't have yet
+      }
+    });
+    if(!storedInv) investments = INITIAL_INVESTMENTS;
+    localStorage.setItem('pat_version', DATA_VERSION);
+  } else if(!storedMonths) {
+    localStorage.setItem('pat_version', DATA_VERSION);
+  }
+
+  return {months, investments, objectives, ppAport, settings};
 }
+
 function saveData(){
   localStorage.setItem('pat_months',JSON.stringify(months));
   localStorage.setItem('pat_investments',JSON.stringify(investments));
   localStorage.setItem('pat_objectives',JSON.stringify(objectives));
   localStorage.setItem('pat_pp_aport',JSON.stringify(ppAport));
   localStorage.setItem('pat_settings',JSON.stringify(settings));
+  localStorage.setItem('pat_version', DATA_VERSION);
   localStorage.setItem('pat_lastSave',new Date().toISOString());
 }
 let{months,investments,objectives,ppAport,settings}=loadData();
@@ -1570,27 +1597,53 @@ function renderInvestments(){
 
   // ── PnL por activo ──
   const byAsset=pnlByAsset();
+  const hasSells=byAsset.some(a=>a.sold>0);
+  const totalNeto=byAsset.reduce((s,a)=>s+a.netCost,0);
+  const totalPnLValue=unrealizedPnL; // vs invested
+
   document.getElementById('pnl-by-asset').innerHTML=`
     <div class="table-wrap" style="margin-top:4px">
-      <table class="fixed" style="min-width:300px">
+      <table class="fixed" style="min-width:260px">
         <colgroup>
-          <col style="width:44%"><col style="width:19%"><col style="width:19%"><col style="width:18%">
+          ${hasSells
+            ?'<col style="width:42%"><col style="width:20%"><col style="width:19%"><col style="width:19%">'
+            :'<col style="width:60%"><col style="width:40%">'}
         </colgroup>
         <thead><tr>
           <th style="padding-left:8px">Activo</th>
-          <th class="right">Comprado</th>
-          <th class="right">Vendido</th>
-          <th class="right">Neto</th>
+          <th class="right">Invertido</th>
+          ${hasSells?'<th class="right">Vendido</th><th class="right">Neto</th>':''}
         </tr></thead>
         <tbody>
           ${byAsset.map(({asset,invested,sold,netCost})=>`<tr>
             <td class="label-cell" style="padding-left:8px;overflow:hidden;text-overflow:ellipsis" title="${asset}">${asset}</td>
             <td class="right sensitive" style="color:var(--text-muted)">${fmt(invested)}</td>
+            ${hasSells?`
             <td class="right sensitive" style="color:${sold>0?'var(--red)':'var(--text-dim)'}">${sold>0?fmt(sold):'—'}</td>
-            <td class="right sensitive" style="font-weight:600;color:${netCost>0?'var(--green)':netCost<0?'var(--red)':'var(--text-muted)'}">${netCost>=0&&netCost!==0?'+':''}${fmt(netCost)}</td>
+            <td class="right sensitive" style="font-weight:600;color:${netCost>0?'var(--green)':netCost<0?'var(--red)':'var(--text-muted)'}">${netCost>0?'+':''}${fmt(netCost)}</td>`:''}
           </tr>`).join('')}
         </tbody>
       </table>
+    </div>
+    <!-- P&L Total -->
+    <div style="margin-top:12px;padding:12px 14px;background:var(--surface2);border-radius:10px;border:1px solid var(--border)">
+      <div style="font-size:10px;font-weight:600;color:var(--text-dim);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">P&amp;L Total</div>
+      <div style="display:grid;gap:7px">
+        <div style="display:flex;justify-content:space-between;font-size:12.5px">
+          <span style="color:var(--text-muted)">Total invertido neto</span>
+          <span class="sensitive" style="font-family:var(--mono)">${fmt(netInvested)}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:12.5px">
+          <span style="color:var(--text-muted)">Valor cartera actual</span>
+          <span class="sensitive" style="font-family:var(--mono)">${currentCartera!==null?fmt(currentCartera):'Introduce valor en Nuevo mes'}</span>
+        </div>
+        <div style="height:1px;background:var(--border);margin:2px 0"></div>
+        <div style="display:flex;justify-content:space-between;font-size:14px;font-weight:700">
+          <span style="color:var(--text)">P&amp;L no realizado</span>
+          <span class="sensitive" style="font-family:var(--mono);color:${unrealizedPnL!==null?(unrealizedPnL>=0?'var(--green)':'var(--red)'):'var(--text-muted)'}">${unrealizedPnL!==null?(unrealizedPnL>=0?'+':'')+fmt(unrealizedPnL,2):'—'}</span>
+        </div>
+        ${unrealizedPct!==null?`<div style="text-align:right;font-size:11px;color:${numClass(unrealizedPct)==='num-pos'?'var(--green)':'var(--red)'}">${unrealizedPct>=0?'+':''}${fmtPct(unrealizedPct)} sobre coste</div>`:''}
+      </div>
     </div>`;
 }
 function saveInvestment(){

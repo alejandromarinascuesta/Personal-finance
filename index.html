@@ -116,14 +116,17 @@ canvas{display:block;max-width:100%}
 
 /* ── TABLE ── */
 .table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
-table{width:100%;border-collapse:collapse;font-size:12px}
-thead th{text-align:left;padding:8px 10px;font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--text-dim);border-bottom:1px solid var(--border);white-space:nowrap}
+table{width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed}
+thead th{text-align:left;padding:8px 10px;font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--text-dim);border-bottom:1px solid var(--border);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 tbody tr{border-bottom:1px solid var(--border);transition:background .1s}
 tbody tr:hover{background:rgba(79,142,247,.04)}
 tbody tr:last-child{border-bottom:none}
-td{padding:9px 10px;color:var(--text);font-family:var(--mono);font-size:11.5px;white-space:nowrap}
+td{padding:9px 10px;color:var(--text);font-family:var(--mono);font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 td.label-cell{font-family:var(--sans);font-size:12px}
 td.right{text-align:right}
+/* P&L color rows */
+tr.pl-pos td{background:rgba(48,217,136,.04)}
+tr.pl-neg td{background:rgba(247,95,95,.04)}
 
 /* ── FORMS ── */
 .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
@@ -396,8 +399,29 @@ body.privacy .badge{filter:none!important} /* percentages always visible */
     <!-- HISTORIAL -->
     <section class="page" id="page-historial">
       <div class="alert alert-info" style="margin-bottom:14px">✏️ Pulsa <b>Editar</b> en cualquier fila para corregir los datos de ese mes.</div>
-      <div class="card"><div class="card-header"><div class="card-title">Todos los registros</div><div style="font-size:12px;color:var(--text-muted)" id="historial-count"></div></div>
-        <div class="table-wrap sensitive"><table><thead><tr><th>Mes</th><th class="right">Ahorro mes</th><th class="right hide-mobile">Saldo cuentas</th><th class="right">Cartera</th><th class="right hide-mobile">Total inv.</th><th class="right hide-mobile">Valor PP</th><th class="right">Patrimonio</th><th class="right hide-mobile">Rent.</th><th></th></tr></thead><tbody id="table-historial"></tbody></table></div>
+      <div class="card">
+        <div class="card-header"><div class="card-title">Todos los registros</div><div style="font-size:12px;color:var(--text-muted)" id="historial-count"></div></div>
+        <div class="table-wrap sensitive">
+          <table style="table-layout:fixed;min-width:700px">
+            <colgroup>
+              <col style="width:90px"><col style="width:95px"><col style="width:105px">
+              <col style="width:95px"><col style="width:100px"><col style="width:95px">
+              <col style="width:110px"><col style="width:80px"><col style="width:80px">
+            </colgroup>
+            <thead><tr>
+              <th>Mes</th>
+              <th class="right">Ahorro</th>
+              <th class="right">Saldo</th>
+              <th class="right">Cartera</th>
+              <th class="right">Total inv.</th>
+              <th class="right">Valor PP</th>
+              <th class="right">Patrimonio</th>
+              <th class="right">Rent.</th>
+              <th></th>
+            </tr></thead>
+            <tbody id="table-historial"></tbody>
+          </table>
+        </div>
       </div>
     </section>
 
@@ -443,6 +467,9 @@ body.privacy .badge{filter:none!important} /* percentages always visible */
 
     <!-- INVERSIONES -->
     <section class="page" id="page-inversiones">
+      <!-- PnL global -->
+      <div class="kpi-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:16px" id="pnl-kpis"></div>
+
       <div class="inv-layout" style="display:grid;grid-template-columns:1fr 1.6fr;gap:22px">
         <div>
           <div class="section-title">➕ Nueva operación</div>
@@ -454,15 +481,23 @@ body.privacy .badge{filter:none!important} /* percentages always visible */
           </div>
           <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:8px;padding:10px" onclick="saveInvestment()">Añadir operación</button>
           <div class="divider"></div>
-          <div class="section-title">Resumen</div>
-          <div id="inv-summary"></div>
+          <!-- PnL por activo -->
+          <div class="section-title">P&amp;L por activo</div>
+          <div id="pnl-by-asset"></div>
         </div>
         <div>
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-            <div class="section-title" style="margin:0;border:none">Registro</div>
+            <div class="section-title" style="margin:0;border:none">Registro de operaciones</div>
             <div style="font-size:12px;color:var(--text-muted)" id="inv-count"></div>
           </div>
-          <div class="card"><div class="table-wrap"><table><thead><tr><th>Fecha</th><th>Activo</th><th class="right">Importe</th><th>Tipo</th><th></th></tr></thead><tbody id="table-investments"></tbody></table></div></div>
+          <div class="card">
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Fecha</th><th>Activo</th><th class="right">Importe</th><th>Tipo</th><th></th></tr></thead>
+                <tbody id="table-investments"></tbody>
+              </table>
+            </div>
+          </div>
         </div>
       </div>
     </section>
@@ -504,10 +539,15 @@ body.privacy .badge{filter:none!important} /* percentages always visible */
           <button class="btn btn-ghost" onclick="setTheme('dark')">🌙 Oscuro</button>
           <button class="btn btn-ghost" onclick="setTheme('light')">☀️ Claro</button>
         </div>
-        <div class="section-title" style="margin-top:20px">🗄️ Datos</div>
-        <div style="display:flex;gap:10px;flex-wrap:wrap">
-          <button class="btn btn-ghost" onclick="exportData()">⬇ Descargar backup</button>
-          <button class="btn btn-ghost" onclick="importData()">⬆ Restaurar backup</button>
+        <div class="section-title" style="margin-top:20px">📊 Excel / Exportar</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px">
+          <button class="btn btn-ghost" onclick="exportData()">⬇ Backup JSON</button>
+          <button class="btn btn-ghost" onclick="importData()">⬆ Restaurar JSON</button>
+          <button class="btn btn-ghost" onclick="exportCSV()">📊 Exportar CSV (para Excel)</button>
+        </div>
+        <div class="alert alert-info" style="font-size:12px">
+          El CSV exportado tiene el mismo formato que tu Excel original. Ábrelo en Excel con <b>Datos → Desde texto/CSV</b>.
+          Para importar desde Excel: guarda como CSV y usa ⬆ Restaurar (solo para JSON).
         </div>
       </div>
     </section>
@@ -620,7 +660,16 @@ function fmtPct(v){if(v===null||v===undefined||isNaN(v))return'—';return(v*100
 function numClass(v){return v>0?'num-pos':v<0?'num-neg':'num-neutral'}
 function sortedMonths(){return[...months].sort((a,b)=>a.year!==b.year?a.year-b.year:a.month-b.month)}
 function patrimonio(m){return(m.saldo_cuentas||0)+(m.valor_cartera||0)+(m.valor_pp||0)}
-function totalInvertidoHasta(year,month){const cut=`${year}-${String(month).padStart(2,'0')}-31`;return investments.filter(i=>i.date<=cut).reduce((s,i)=>s+i.amount,0)}
+// totalInvertidoHasta: net cost basis = buys - sells up to date
+// investments with amount>0 = compra, amount<0 = venta
+// The sum of all amounts (with sign) gives net invested correctly
+function totalInvertidoHasta(year,month){
+  const cut=`${year}-${String(month).padStart(2,'0')}-31`;
+  // Only count positive (buy) amounts for cost basis — sells reduce it
+  const buys=investments.filter(i=>i.date<=cut&&i.amount>0).reduce((s,i)=>s+i.amount,0);
+  const sells=investments.filter(i=>i.date<=cut&&i.amount<0).reduce((s,i)=>s+Math.abs(i.amount),0);
+  return buys-sells;
+}
 function totalPPHasta(year,month){return ppAport.filter(p=>p.year<year||(p.year===year&&p.month<=month)).reduce((s,p)=>s+(p.amount||0),0)}
 function rentabilidad(m){const inv=totalInvertidoHasta(m.year,m.month);if(!inv||inv===0||m.valor_cartera===null||m.valor_cartera===undefined)return null;return(m.valor_cartera-inv)/inv}
 function ahorroAcumuladoAnio(year){return sortedMonths().filter(m=>m.year===year).reduce((s,m)=>s+(m.ahorro_mes||0),0)}
@@ -857,7 +906,11 @@ function renderDashboard(){
 // ANÁLISIS
 // ═══════════════════════════════════════════════
 function renderAnalisis(){
-  const sm=sortedMonths();if(sm.length<2){document.getElementById('insights-grid').innerHTML='<p style="color:var(--text-muted);grid-column:1/-1;padding:20px">Necesitas al menos 2 meses de datos.</p>';return}
+  const sm=sortedMonths();
+  if(sm.length<2){
+    document.getElementById('insights-grid').innerHTML='<p style="color:var(--text-muted);grid-column:1/-1;padding:20px">Necesitas al menos 2 meses de datos.</p>';
+    return;
+  }
   const last=sm[sm.length-1],first=sm[0];
   const twrr=calcTWRR(last.year,last.month);
   const totalInv=totalInvertidoHasta(last.year,last.month);
@@ -867,30 +920,49 @@ function renderAnalisis(){
   const changes=sm.slice(1).map((m,i)=>({label:m.label,change:patrimonio(m)-patrimonio(sm[i])}));
   const best=changes.reduce((a,b)=>b.change>a.change?b:a);
   const worst=changes.reduce((a,b)=>b.change<a.change?b:a);
-  const avgAhorro=months.reduce((s,m)=>s+(m.ahorro_mes||0),0)/months.length;
-  const capitalNecesario=settings.gasto*12/(settings.tasa/100);
-  const pctIF=capitalNecesario>0?pat/capitalNecesario:null;
-
-  // Freedom card
-  document.getElementById('freedom-card').innerHTML=`
-    <div class="freedom-title">🎯 Cuenta atrás a la Independencia Financiera</div>
-    <div class="freedom-grid">
-      <div class="freedom-item"><div class="freedom-val">${fmt(capitalNecesario)}</div><div class="freedom-lbl">Capital objetivo IF</div></div>
-      <div class="freedom-item"><div class="freedom-val" style="${pctIF!==null&&pctIF>=1?'color:var(--green)':''}">${pctIF!==null?fmtPct(pctIF):'—'}</div><div class="freedom-lbl">Progreso actual</div></div>
-      <div class="freedom-item"><div class="freedom-val">${fmt(Math.max(0,capitalNecesario-pat))}</div><div class="freedom-lbl">Aún necesitas</div></div>
-    </div>
-    <div style="margin-top:14px"><div class="progress-track" style="height:10px"><div class="progress-fill" style="width:${Math.min((pctIF||0)*100,100)}%;background:linear-gradient(90deg,var(--accent),var(--purple))"></div></div></div>
-    <div style="font-size:11px;color:var(--text-muted);margin-top:6px;text-align:right">${settings.gasto?`Basado en ${fmt(settings.gasto)}/mes gasto objetivo · regla ${settings.tasa}% · configura en Ajustes`:'Configura tu gasto objetivo en Ajustes'}</div>`;
+  const gananciaCartera=last.valor_cartera!==null?(last.valor_cartera||0)-totalInv:null;
+  const rentPP=last.valor_pp!==null&&totalPP>0?((last.valor_pp||0)-totalPP)/totalPP:null;
 
   document.getElementById('insights-grid').innerHTML=`
-    <div class="insight-card"><div class="insight-title">TWRR acumulado <span class="twrr-tag">time-weighted</span></div><div class="insight-val ${twrr!==null?numClass(twrr):''}">${twrr!==null?fmtPct(twrr):'—'}</div><div class="insight-sub">Rentabilidad real sin efecto de aportaciones</div></div>
-    <div class="insight-card"><div class="insight-title">Ganancia / pérdida cartera</div><div class="insight-val ${last.valor_cartera!==null?numClass((last.valor_cartera||0)-totalInv):''}">${last.valor_cartera!==null?(((last.valor_cartera||0)-totalInv>=0)?'+':'')+fmt((last.valor_cartera||0)-totalInv):'—'}</div><div class="insight-sub">${fmt(last.valor_cartera)} vs ${fmt(totalInv)} invertido</div></div>
-    <div class="insight-card"><div class="insight-title">Rentabilidad PP</div><div class="insight-val ${last.valor_pp!==null?numClass((last.valor_pp||0)-totalPP):''}">${last.valor_pp!==null&&totalPP>0?fmtPct(((last.valor_pp||0)-totalPP)/totalPP):'—'}</div><div class="insight-sub">${fmt(last.valor_pp)} vs ${fmt(totalPP)} aportado</div></div>
-    <div class="insight-card"><div class="insight-title">Crecimiento patrimonial</div><div class="insight-val ${patGrowth!==null?numClass(patGrowth):''}">${patGrowth!==null?fmtPct(patGrowth):'—'}</div><div class="insight-sub">Desde ${first.label} hasta ${last.label}</div></div>
-    <div class="insight-card"><div class="insight-title">Mejor mes</div><div class="insight-val num-pos">+${fmt(best.change)}</div><div class="insight-sub">${best.label}</div></div>
-    <div class="insight-card"><div class="insight-title">Peor mes</div><div class="insight-val num-neg">${fmt(worst.change)}</div><div class="insight-sub">${worst.label}</div></div>`;
+    <div class="insight-card">
+      <div class="insight-title">TWRR acumulado <span class="twrr-tag">time-weighted</span></div>
+      <div class="insight-val ${twrr!==null?numClass(twrr):''}">${twrr!==null?fmtPct(twrr):'—'}</div>
+      <div class="insight-sub">Rentabilidad real, sin efecto de tus aportaciones</div>
+    </div>
+    <div class="insight-card">
+      <div class="insight-title">Ganancia / pérdida cartera</div>
+      <div class="insight-val sensitive ${gananciaCartera!==null?numClass(gananciaCartera):''}">${gananciaCartera!==null?(gananciaCartera>=0?'+':'')+fmt(gananciaCartera):'—'}</div>
+      <div class="insight-sub sensitive">${fmt(last.valor_cartera)} en cartera vs ${fmt(totalInv)} invertido</div>
+    </div>
+    <div class="insight-card">
+      <div class="insight-title">Rentabilidad PP</div>
+      <div class="insight-val ${rentPP!==null?numClass(rentPP):''}">${rentPP!==null?fmtPct(rentPP):'—'}</div>
+      <div class="insight-sub sensitive">${fmt(last.valor_pp)} vs ${fmt(totalPP)} aportado</div>
+    </div>
+    <div class="insight-card">
+      <div class="insight-title">Crecimiento patrimonial total</div>
+      <div class="insight-val ${patGrowth!==null?numClass(patGrowth):''}">${patGrowth!==null?fmtPct(patGrowth):'—'}</div>
+      <div class="insight-sub">Desde ${first.label} hasta ${last.label}</div>
+    </div>
+    <div class="insight-card">
+      <div class="insight-title">🏆 Mejor mes</div>
+      <div class="insight-val num-pos sensitive">+${fmt(best.change)}</div>
+      <div class="insight-sub">${best.label}</div>
+    </div>
+    <div class="insight-card">
+      <div class="insight-title">📉 Peor mes</div>
+      <div class="insight-val num-neg sensitive">${fmt(worst.change)}</div>
+      <div class="insight-sub">${worst.label}</div>
+    </div>`;
 
-  setTimeout(()=>{drawRentChart(sm);drawActivosChart();drawYoYChart(sm);drawDonut(last);drawGrowthChart(sm);renderProjection(sm,last)},50);
+  setTimeout(()=>{
+    drawRentChart(sm);
+    drawActivosChart();
+    drawYoYChart(sm);
+    drawDonut(last);
+    drawGrowthChart(sm);
+    renderProjection(sm,last);
+  },50);
 }
 
 // ═══════════════════════════════════════════════
@@ -1221,19 +1293,23 @@ function drawDonut(last){
 // HISTORIAL
 // ═══════════════════════════════════════════════
 function renderHistorial(){
-  const sm=sortedMonths();document.getElementById('historial-count').textContent=`${sm.length} registros`;
+  const sm=sortedMonths();
+  document.getElementById('historial-count').textContent=`${sm.length} registros`;
   document.getElementById('table-historial').innerHTML=[...sm].reverse().map(m=>{
     const p=patrimonio(m),r=rentabilidad(m),ti=totalInvertidoHasta(m.year,m.month);
     return`<tr>
       <td class="label-cell">${m.label}</td>
       <td class="right ${numClass(m.ahorro_mes)}">${fmt(m.ahorro_mes)}</td>
-      <td class="right hide-mobile">${fmt(m.saldo_cuentas)}</td>
-      <td class="right">${fmt(m.valor_cartera)}</td>
-      <td class="right hide-mobile">${fmt(ti)}</td>
-      <td class="right hide-mobile">${fmt(m.valor_pp)}</td>
-      <td class="right" style="font-weight:600">${fmt(p)}</td>
-      <td class="right hide-mobile ${r!==null?numClass(r):''}">${r!==null?fmtPct(r):'—'}</td>
-      <td><div style="display:flex;gap:4px"><button class="btn btn-edit btn-sm" onclick="openEditModal(${m.year},${m.month})">✏</button><button class="btn btn-danger btn-sm" onclick="deleteMonth(${m.year},${m.month})">✕</button></div></td>
+      <td class="right sensitive">${fmt(m.saldo_cuentas)}</td>
+      <td class="right sensitive">${fmt(m.valor_cartera)}</td>
+      <td class="right sensitive">${fmt(ti)}</td>
+      <td class="right sensitive">${fmt(m.valor_pp)}</td>
+      <td class="right sensitive" style="font-weight:600">${fmt(p)}</td>
+      <td class="right ${r!==null?numClass(r):''}">${r!==null?fmtPct(r):'—'}</td>
+      <td><div style="display:flex;gap:4px">
+        <button class="btn btn-edit btn-sm" onclick="openEditModal(${m.year},${m.month})">✏</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteMonth(${m.year},${m.month})">✕</button>
+      </div></td>
     </tr>`;
   }).join('');
 }
@@ -1386,30 +1462,92 @@ function saveMonth(){
 function clearForm(){['form-ahorro-mes','form-valor-cartera','form-aport-pp','form-valor-pp','form-sueldo'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=''});['form-saldo','form-total-inv','form-total-pp','form-rent-inv','form-twrr'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=''});document.getElementById('saldo-hint').textContent='';updatePreview()}
 
 // ═══════════════════════════════════════════════
-// INVERSIONES
+// INVERSIONES — PnL helpers
 // ═══════════════════════════════════════════════
+function pnlByAsset(){
+  // Build per-asset: invested (buys - sells at cost), current value unknown so show cost basis + realized PnL
+  const map={};
+  investments.forEach(i=>{
+    if(!map[i.asset])map[i.asset]={invested:0,sold:0,ops:0};
+    if(i.amount>0){map[i.asset].invested+=i.amount;}   // compra: suma coste
+    else{map[i.asset].sold+=Math.abs(i.amount);}        // venta: dinero recuperado
+    map[i.asset].ops++;
+  });
+  return Object.entries(map).map(([asset,d])=>({
+    asset,
+    invested: d.invested,         // total € comprado
+    sold: d.sold,                 // total € vendido (realizado)
+    netCost: d.invested-d.sold,   // coste neto actual en cartera
+    realizedPnL: d.sold>0?d.sold-d.invested*(d.sold/(d.invested||1)):0, // simplificación FIFO
+    ops: d.ops,
+  })).sort((a,b)=>b.invested-a.invested);
+}
+
 function renderInvestments(){
   document.getElementById('inv-date').value=new Date().toISOString().split('T')[0];
   const assets=[...new Set(investments.map(i=>i.asset))];
   document.getElementById('assets-list').innerHTML=assets.map(a=>`<option value="${a}">`).join('');
+
+  // ── Log table ──
   const sorted=[...investments].sort((a,b)=>b.date.localeCompare(a.date));
   document.getElementById('table-investments').innerHTML=sorted.map(inv=>`<tr>
-    <td>${inv.date}</td><td class="label-cell" style="font-family:var(--sans)">${inv.asset}</td>
+    <td>${inv.date}</td>
+    <td class="label-cell" style="font-family:var(--sans);max-width:120px;overflow:hidden;text-overflow:ellipsis">${inv.asset}</td>
     <td class="right ${inv.amount<0?'num-neg':'num-pos'}">${inv.amount<0?'-':''}${fmt(Math.abs(inv.amount))}</td>
     <td><span class="badge ${inv.type==='Compra'?'badge-green':'badge-red'}">${inv.type}</span></td>
     <td><button class="btn btn-danger btn-sm" onclick="deleteInvestment(${inv.id})">✕</button></td>
   </tr>`).join('');
   document.getElementById('inv-count').textContent=`${investments.length} operaciones`;
-  const buys=investments.filter(i=>i.amount>0).reduce((s,i)=>s+i.amount,0);
-  const sells=investments.filter(i=>i.amount<0).reduce((s,i)=>s+Math.abs(i.amount),0);
-  const breakdown=assetBreakdown();
-  document.getElementById('inv-summary').innerHTML=`<div style="display:grid;gap:7px">
-    <div style="display:flex;justify-content:space-between;padding:9px 12px;background:var(--surface2);border-radius:8px;border:1px solid var(--border)"><span style="font-size:13px;color:var(--text-muted)">Total compras</span><span style="font-family:var(--mono);color:var(--green)">${fmt(buys)}</span></div>
-    <div style="display:flex;justify-content:space-between;padding:9px 12px;background:var(--surface2);border-radius:8px;border:1px solid var(--border)"><span style="font-size:13px;color:var(--text-muted)">Total ventas</span><span style="font-family:var(--mono);color:var(--red)">${fmt(sells)}</span></div>
-    <div style="display:flex;justify-content:space-between;padding:9px 12px;background:var(--surface2);border-radius:8px;border:1px solid var(--border);border-top:2px solid var(--accent)"><span style="font-size:13px;font-weight:600;color:var(--text)">Inversión neta</span><span style="font-family:var(--mono);font-weight:700;color:var(--accent)">${fmt(buys-sells)}</span></div>
-    <div class="section-title" style="margin:8px 0 5px">Por activo (neto)</div>
-    ${breakdown.slice(0,6).map(([asset,total])=>`<div style="display:flex;justify-content:space-between;padding:5px 8px;font-size:12px"><span style="color:var(--text-muted);font-family:var(--sans)">${asset}</span><span style="font-family:var(--mono);color:${total>=0?'var(--green)':'var(--red)'}">${total>=0?'+':''}${fmt(total)}</span></div>`).join('')}
-  </div>`;
+
+  // ── Global PnL ──
+  const totalBuys=investments.filter(i=>i.amount>0).reduce((s,i)=>s+i.amount,0);
+  const totalSells=investments.filter(i=>i.amount<0).reduce((s,i)=>s+Math.abs(i.amount),0);
+  const netInvested=totalBuys-totalSells; // dinero neto actualmente en mercado
+  // Get current cartera value from last month with data
+  const sm=sortedMonths();
+  const lastWithCartera=[...sm].reverse().find(m=>m.valor_cartera!==null&&m.valor_cartera!==undefined);
+  const currentCartera=lastWithCartera?lastWithCartera.valor_cartera:null;
+  const unrealizedPnL=currentCartera!==null?currentCartera-netInvested:null;
+  const unrealizedPct=netInvested>0&&unrealizedPnL!==null?unrealizedPnL/netInvested:null;
+  const totalRealizedPnL=totalSells-totalBuys*(totalSells/(totalBuys||1)); // rough realized
+
+  document.getElementById('pnl-kpis').innerHTML=`
+    <div class="kpi-card blue">
+      <div class="kpi-label">Total comprado</div>
+      <div class="kpi-value sensitive" style="font-size:20px">${fmt(totalBuys)}</div>
+      <div class="kpi-sub">${sorted.filter(i=>i.amount>0).length} compras</div>
+    </div>
+    <div class="kpi-card" style="border-top:2px solid var(--red)">
+      <div class="kpi-label">Total vendido</div>
+      <div class="kpi-value sensitive" style="font-size:20px">${fmt(totalSells)}</div>
+      <div class="kpi-sub">${sorted.filter(i=>i.amount<0).length} ventas</div>
+    </div>
+    <div class="kpi-card" style="border-top:2px solid var(--green)">
+      <div class="kpi-label">P&amp;L no realizado</div>
+      <div class="kpi-value sensitive ${unrealizedPnL!==null?numClass(unrealizedPnL):''}" style="font-size:20px">${unrealizedPnL!==null?(unrealizedPnL>=0?'+':'')+fmt(unrealizedPnL,2):'—'}</div>
+      <div class="kpi-sub">${unrealizedPct!==null?`<span class="${numClass(unrealizedPct)}">${unrealizedPct>=0?'+':''}${fmtPct(unrealizedPct)}</span> sobre ${fmt(netInvested)} neto`:`Introduce valor cartera en Nuevo mes`}</div>
+    </div>
+    <div class="kpi-card" style="border-top:2px solid var(--amber)">
+      <div class="kpi-label">Neto en mercado</div>
+      <div class="kpi-value sensitive" style="font-size:20px">${fmt(netInvested)}</div>
+      <div class="kpi-sub sensitive">${currentCartera!==null?`Cartera actual: ${fmt(currentCartera)}`:'Sin valor cartera aún'}</div>
+    </div>`;
+
+  // ── PnL por activo ──
+  const byAsset=pnlByAsset();
+  document.getElementById('pnl-by-asset').innerHTML=`
+    <div style="display:grid;gap:6px">
+      <div style="display:grid;grid-template-columns:1fr auto auto auto;gap:8px;padding:5px 8px;font-size:10px;font-weight:600;color:var(--text-dim);text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--border)">
+        <span>Activo</span><span style="text-align:right">Comprado</span><span style="text-align:right">Vendido</span><span style="text-align:right">Neto</span>
+      </div>
+      ${byAsset.map(({asset,invested,sold,netCost})=>`
+        <div style="display:grid;grid-template-columns:1fr auto auto auto;gap:8px;padding:6px 8px;border-radius:7px;background:var(--surface2);align-items:center">
+          <span style="font-size:12px;color:var(--text);font-family:var(--sans);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${asset}">${asset}</span>
+          <span class="sensitive" style="font-family:var(--mono);font-size:11.5px;color:var(--text-muted);text-align:right">${fmt(invested)}</span>
+          <span class="sensitive" style="font-family:var(--mono);font-size:11.5px;color:${sold>0?'var(--red)':'var(--text-dim)'};text-align:right">${sold>0?'-'+fmt(sold):'—'}</span>
+          <span class="sensitive" style="font-family:var(--mono);font-size:11.5px;font-weight:600;color:${netCost>0?'var(--text)':'var(--text-muted)'};text-align:right">${fmt(netCost)}</span>
+        </div>`).join('')}
+    </div>`;
 }
 function saveInvestment(){
   const date=document.getElementById('inv-date').value,asset=document.getElementById('inv-asset').value.trim();
@@ -1429,12 +1567,45 @@ function deleteInvestment(id){if(!confirm('¿Eliminar?'))return;investments=inve
 function renderObjetivos(){
   const sm=sortedMonths();
   document.getElementById('objectives-container').innerHTML=`<div class="obj-grid">${Object.keys(objectives).sort().map(year=>{
-    const obj=objectives[year],ym=sm.filter(m=>m.year==year),last=ym.length?ym[ym.length-1]:null;
-    const cum=ahorroAcumuladoAnio(parseInt(year)),pat=last?patrimonio(last):0;
-    const pA=obj.ahorro?cum/obj.ahorro:0,pP=obj.patrimonio?pat/obj.patrimonio:0;
-    return`<div class="obj-card"><div class="obj-year">Año ${year}</div><div style="display:grid;gap:14px">
-      <div><div style="display:flex;justify-content:space-between;margin-bottom:6px"><span style="font-size:13px;color:var(--text)">Objetivo ahorro</span><input type="number" value="${obj.ahorro}" style="width:110px;padding:3px 7px;font-size:12px;text-align:right" onchange="updateObjective('${year}','ahorro',this.value)"></div><div class="progress-track"><div class="progress-fill" style="width:${Math.min(pA*100,100)}%;background:${pA>=1?'var(--green)':'var(--accent)'}"></div></div><div style="display:flex;justify-content:space-between;margin-top:3px;font-size:11px;color:var(--text-muted)"><span>${fmt(cum)} acumulado</span><span>${(pA*100).toFixed(1)}%</span></div></div>
-      <div><div style="display:flex;justify-content:space-between;margin-bottom:6px"><span style="font-size:13px;color:var(--text)">Objetivo patrimonio</span><input type="number" value="${obj.patrimonio}" style="width:110px;padding:3px 7px;font-size:12px;text-align:right" onchange="updateObjective('${year}','patrimonio',this.value)"></div><div class="progress-track"><div class="progress-fill" style="width:${Math.min(pP*100,100)}%;background:${pP>=1?'var(--green)':'var(--purple)'}"></div></div><div style="display:flex;justify-content:space-between;margin-top:3px;font-size:11px;color:var(--text-muted)"><span>${fmt(pat)} último</span><span>${(pP*100).toFixed(1)}%</span></div></div>
+    const obj=objectives[year];
+    const ym=sm.filter(m=>m.year==year);
+    const last=ym.length?ym[ym.length-1]:null;
+    // Ahorro acumulado del año
+    const cumAhorro=ahorroAcumuladoAnio(parseInt(year));
+    // Patrimonio actual (total, como siempre ha sido el objetivo)
+    const pat=last?patrimonio(last):0;
+    // Para el objetivo de ahorro: progreso = saldo_cuentas actual (tienes ese dinero)
+    // vs el objetivo de ahorro que era un objetivo de saldo, no solo flujo del año
+    const pA=obj.ahorro?Math.min(cumAhorro/obj.ahorro,1.5):0;
+    const pP=obj.patrimonio?Math.min(pat/obj.patrimonio,1.5):0;
+    const mesActual=last?last.month:0;
+    const progresoEsperadoPat=obj.patrimonio&&mesActual>0?(obj.patrimonio*(mesActual/12)):0;
+    const diffPat=pat-progresoEsperadoPat;
+    return`<div class="obj-card"><div class="obj-year">Año ${year}</div><div style="display:grid;gap:16px">
+      <div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+          <span style="font-size:13px;color:var(--text)">Objetivo ahorro anual</span>
+          <input type="number" value="${obj.ahorro}" style="width:110px;padding:3px 7px;font-size:12px;text-align:right" onchange="updateObjective('${year}','ahorro',this.value)">
+        </div>
+        <div class="progress-track"><div class="progress-fill" style="width:${Math.min(pA*100,100)}%;background:${pA>=1?'var(--green)':'var(--accent)'}"></div></div>
+        <div style="display:flex;justify-content:space-between;margin-top:4px;font-size:11px;color:var(--text-muted)">
+          <span>${fmt(cumAhorro)} ahorrado este año</span><span>${(pA*100).toFixed(1)}%</span>
+        </div>
+      </div>
+      <div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+          <span style="font-size:13px;color:var(--text)">Objetivo patrimonio total</span>
+          <input type="number" value="${obj.patrimonio}" style="width:110px;padding:3px 7px;font-size:12px;text-align:right" onchange="updateObjective('${year}','patrimonio',this.value)">
+        </div>
+        <div class="progress-track"><div class="progress-fill" style="width:${Math.min(pP*100,100)}%;background:${pP>=1?'var(--green)':'var(--purple)'}"></div></div>
+        <div style="display:flex;justify-content:space-between;margin-top:4px;font-size:11px;color:var(--text-muted)">
+          <span>${fmt(pat)} actual</span><span>${(pP*100).toFixed(1)}%</span>
+        </div>
+        ${mesActual>0?`<div style="margin-top:6px;font-size:11px;display:flex;justify-content:space-between;color:${diffPat>=0?'var(--green)':'var(--amber)'}">
+          <span>Ritmo proporcional (mes ${mesActual}/12)</span>
+          <span>${diffPat>=0?'+':''}${fmt(diffPat)} vs ritmo</span>
+        </div>`:''}
+      </div>
       <button class="btn btn-danger btn-sm" onclick="deleteObjective('${year}')">Eliminar ${year}</button>
     </div></div>`;
   }).join('')}</div>`;
@@ -1462,6 +1633,32 @@ function saveSettings(){
 // EXPORT / IMPORT
 // ═══════════════════════════════════════════════
 function exportData(){const data={months,investments,objectives,ppAport,settings,exportedAt:new Date().toISOString(),version:3};const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`patrimonio_backup_${new Date().toISOString().split('T')[0]}.json`;a.click();showToast('✓ Backup descargado')}
+
+function exportCSV(){
+  // Sheet 1: monthly data
+  const sm=sortedMonths();
+  const sep=';'; // Excel ES locale uses semicolon
+  let csv='MES;AHORRO_MES;SALDO_CUENTAS;VALOR_CARTERA;TOTAL_INVERTIDO;VALOR_PP;TOTAL_PP;PATRIMONIO_TOTAL;PATRIMONIO_LIQUIDO;RENT_CARTERA_PCT;TWRR_PCT\n';
+  sm.forEach(m=>{
+    const p=patrimonio(m);
+    const liq=(m.saldo_cuentas||0)+(m.valor_cartera||0);
+    const ti=totalInvertidoHasta(m.year,m.month);
+    const tpp=totalPPHasta(m.year,m.month);
+    const r=rentabilidad(m);
+    const tw=calcTWRR(m.year,m.month);
+    const n=v=>v===null||v===undefined?'':(typeof v==='number'?v.toFixed(2).replace('.',','):v);
+    csv+=`${m.label}${sep}${n(m.ahorro_mes)}${sep}${n(m.saldo_cuentas)}${sep}${n(m.valor_cartera)}${sep}${n(ti)}${sep}${n(m.valor_pp)}${sep}${n(tpp)}${sep}${n(p)}${sep}${n(liq)}${sep}${r!==null?n(r*100):''}${sep}${tw!==null?n(tw*100):''}\n`;
+  });
+  csv+='\nFECHA;ACTIVO;IMPORTE;TIPO\n';
+  [...investments].sort((a,b)=>a.date.localeCompare(b.date)).forEach(i=>{
+    csv+=`${i.date}${sep}${i.asset}${sep}${i.amount.toFixed(2).replace('.',',')}${sep}${i.type}\n`;
+  });
+  const BOM='\uFEFF'; // UTF-8 BOM for Excel
+  const blob=new Blob([BOM+csv],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download=`patrimonio_${new Date().toISOString().split('T')[0]}.csv`;a.click();
+  showToast('✓ CSV exportado');
+}
 function importData(){document.getElementById('import-file').click()}
 function handleImport(e){
   const file=e.target.files[0];if(!file)return;

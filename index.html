@@ -657,6 +657,7 @@ body.privacy .badge{filter:none!important} /* percentages always visible */
   </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 // ═══════════════════════════════════════════════
 // DATOS INICIALES
@@ -729,11 +730,78 @@ const INITIAL_PP=[
 ];
 
 // ═══════════════════════════════════════════════
-// PERSISTENCE — user edits always win
+// PERSISTENCE — Supabase cloud + local backup
 // ═══════════════════════════════════════════════
 const DATA_VERSION = 5; // bump when INITIAL data changes
 
-function loadData(){
+// 1) Pega aquí los datos de Supabase:
+//    Project URL: Settings → API → Project URL
+//    Anon/Public key: Settings → API → Project API Keys → anon/public
+const SUPABASE_URL = 'https://tbtkaeunslcffplmencs.supabase.co';
+const SUPABASE_ANON_KEY = 'PEGA_AQUI_TU_ANON_PUBLIC_KEY';
+
+// Cliente Supabase. OJO: nunca pegues aquí la service_role key.
+const sb = window.supabase?.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
+});
+
+let cloudReady = false;
+let currentUser = null;
+let authResolver = null;
+let remoteSaveTimer = null;
+let applyingRemoteChange = false;
+
+function clone(v){ return JSON.parse(JSON.stringify(v)); }
+
+function normalizeState(raw){
+  const state = raw || {};
+  const monthsData = state.months || INITIAL_MONTHS;
+  const investmentsData = state.investments || INITIAL_INVESTMENTS;
+  const objectivesData = state.objectives || INITIAL_OBJECTIVES;
+  const ppData = state.ppAport || INITIAL_PP;
+  const settingsData = state.settings || {gasto:2000,tasa:4,sueldo:null};
+
+  // Migration: if code updated with new INITIAL months, merge them in
+  const version = parseInt(state.version || '0');
+  if(version < DATA_VERSION && Array.isArray(monthsData)){
+    const keys = new Set(monthsData.map(m=>`${m.year}-${m.month}`));
+    INITIAL_MONTHS.forEach(im=>{
+      if(!keys.has(`${im.year}-${im.month}`)) monthsData.push(clone(im));
+    });
+  }
+
+  return {
+    version: DATA_VERSION,
+    months: monthsData,
+    investments: investmentsData,
+    objectives: objectivesData,
+    ppAport: ppData,
+    settings: settingsData
+  };
+}
+
+function getCurrentState(){
+  return {
+    version: DATA_VERSION,
+    months,
+    investments,
+    objectives,
+    ppAport,
+    settings
+  };
+}
+
+function persistLocalState(state){
+  localStorage.setItem('pat_months', JSON.stringify(state.months));
+  localStorage.setItem('pat_investments', JSON.stringify(state.investments));
+  localStorage.setItem('pat_objectives', JSON.stringify(state.objectives));
+  localStorage.setItem('pat_pp_aport', JSON.stringify(state.ppAport));
+  localStorage.setItem('pat_settings', JSON.stringify(state.settings));
+  localStorage.setItem('pat_version', DATA_VERSION);
+  localStorage.setItem('pat_lastSave', new Date().toISOString());
+}
+
+function loadLocalData(){
   const savedVersion = parseInt(localStorage.getItem('pat_version')||'0');
   const storedMonths = JSON.parse(localStorage.getItem('pat_months')||'null');
   const storedInv = JSON.parse(localStorage.getItem('pat_investments')||'null');
@@ -741,42 +809,237 @@ function loadData(){
   const storedPP = JSON.parse(localStorage.getItem('pat_pp_aport')||'null');
   const storedSettings = JSON.parse(localStorage.getItem('pat_settings')||'null');
 
-  // If we have stored data, always use it (user edits win)
-  // Only use INITIAL as fallback when nothing is stored yet
-  let months = storedMonths || INITIAL_MONTHS;
-  let investments = storedInv || INITIAL_INVESTMENTS;
-  let objectives = storedObj || INITIAL_OBJECTIVES;
-  let ppAport = storedPP || INITIAL_PP;
-  let settings = storedSettings || {gasto:2000,tasa:4,sueldo:null};
+  const local = normalizeState({
+    version: savedVersion,
+    months: storedMonths || clone(INITIAL_MONTHS),
+    investments: storedInv || clone(INITIAL_INVESTMENTS),
+    objectives: storedObj || clone(INITIAL_OBJECTIVES),
+    ppAport: storedPP || clone(INITIAL_PP),
+    settings: storedSettings || {gasto:2000,tasa:4,sueldo:null}
+  });
 
-  // Version migration: if code updated with new INITIAL months, merge them in
-  // so new months added to INITIAL appear, but user-edited months are untouched
-  if(storedMonths && savedVersion < DATA_VERSION){
-    const userKeys = new Set(storedMonths.map(m=>`${m.year}-${m.month}`));
-    INITIAL_MONTHS.forEach(im=>{
-      if(!userKeys.has(`${im.year}-${im.month}`)){
-        months.push(im); // add new initial months user doesn't have yet
-      }
-    });
-    if(!storedInv) investments = INITIAL_INVESTMENTS;
-    localStorage.setItem('pat_version', DATA_VERSION);
-  } else if(!storedMonths) {
-    localStorage.setItem('pat_version', DATA_VERSION);
+  persistLocalState(local);
+  return {
+    months: local.months,
+    investments: local.investments,
+    objectives: local.objectives,
+    ppAport: local.ppAport,
+    settings: local.settings
+  };
+}
+
+function setCloudStatus(txt){
+  const el = document.getElementById('last-update');
+  if(el) el.textContent = txt || '';
+}
+
+function supabaseConfigured(){
+  return !!(sb && SUPABASE_URL && SUPABASE_ANON_KEY && !SUPABASE_ANON_KEY.includes('PEGA_AQUI'));
+}
+
+function showAuthModal(){
+  if(document.getElementById('auth-overlay')) return;
+  document.body.insertAdjacentHTML('beforeend', `
+    <div class="modal-overlay open" id="auth-overlay" style="z-index:300">
+      <div class="modal" onclick="event.stopPropagation()">
+        <div class="modal-title">Acceso a Patrimonio</div>
+        <div class="alert alert-info" style="font-size:12px">
+          Inicia sesión para sincronizar tus datos con Supabase en todos tus dispositivos.
+        </div>
+        <div class="form-grid">
+          <div class="form-group full">
+            <label>Email</label>
+            <input id="auth-email" type="email" placeholder="tu@email.com" style="font-family:var(--sans)">
+          </div>
+          <div class="form-group full">
+            <label>Contraseña</label>
+            <input id="auth-pass" type="password" placeholder="mínimo 6 caracteres" style="font-family:var(--sans)">
+          </div>
+        </div>
+        <div id="auth-msg" style="font-size:12px;color:var(--text-muted);margin-top:10px;min-height:18px"></div>
+        <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap">
+          <button class="btn btn-primary" style="flex:1;justify-content:center" onclick="loginSupabase()">Entrar</button>
+          <button class="btn btn-ghost" style="flex:1;justify-content:center" onclick="signupSupabase()">Crear cuenta</button>
+        </div>
+      </div>
+    </div>
+  `);
+}
+
+function removeAuthModal(){
+  const el = document.getElementById('auth-overlay');
+  if(el) el.remove();
+}
+
+function getAuthForm(){
+  const email = document.getElementById('auth-email')?.value.trim();
+  const password = document.getElementById('auth-pass')?.value;
+  const msg = document.getElementById('auth-msg');
+  return {email,password,msg};
+}
+
+async function loginSupabase(){
+  const {email,password,msg} = getAuthForm();
+  if(!email || !password){ if(msg) msg.textContent = 'Introduce email y contraseña.'; return; }
+  if(msg) msg.textContent = 'Entrando...';
+  const { data, error } = await sb.auth.signInWithPassword({ email, password });
+  if(error){ if(msg) msg.textContent = 'Error: ' + error.message; return; }
+  currentUser = data.user;
+  removeAuthModal();
+  if(authResolver) authResolver(data.session);
+}
+
+async function signupSupabase(){
+  const {email,password,msg} = getAuthForm();
+  if(!email || !password){ if(msg) msg.textContent = 'Introduce email y contraseña.'; return; }
+  if(msg) msg.textContent = 'Creando cuenta...';
+  const { data, error } = await sb.auth.signUp({ email, password });
+  if(error){ if(msg) msg.textContent = 'Error: ' + error.message; return; }
+
+  if(data.session){
+    currentUser = data.user;
+    removeAuthModal();
+    if(authResolver) authResolver(data.session);
+  }else{
+    if(msg) msg.textContent = 'Cuenta creada. Revisa tu correo si Supabase pide confirmar el email y luego pulsa Entrar.';
+  }
+}
+
+async function waitForAuth(){
+  const { data } = await sb.auth.getSession();
+  if(data?.session?.user){
+    currentUser = data.session.user;
+    return data.session;
+  }
+  showAuthModal();
+  return new Promise(resolve => { authResolver = resolve; });
+}
+
+async function loadData(){
+  const localData = loadLocalData();
+
+  if(!supabaseConfigured()){
+    setCloudStatus('Modo local');
+    console.warn('Supabase no configurado: pega SUPABASE_ANON_KEY.');
+    return localData;
   }
 
-  return {months, investments, objectives, ppAport, settings};
+  try{
+    setCloudStatus('Conectando...');
+    const session = await waitForAuth();
+    currentUser = session.user;
+    cloudReady = true;
+
+    const { data, error } = await sb
+      .from('finance_state')
+      .select('data, updated_at')
+      .eq('user_id', currentUser.id)
+      .maybeSingle();
+
+    if(error) throw error;
+
+    // Primera vez: sube lo que ya tenías en localStorage / INITIAL
+    if(!data){
+      const initialCloudState = normalizeState({
+        version: DATA_VERSION,
+        months: localData.months,
+        investments: localData.investments,
+        objectives: localData.objectives,
+        ppAport: localData.ppAport,
+        settings: localData.settings
+      });
+      await sb.from('finance_state').insert({
+        user_id: currentUser.id,
+        data: initialCloudState,
+        updated_at: new Date().toISOString()
+      });
+      setCloudStatus('☁ sincronizado');
+      return {
+        months: initialCloudState.months,
+        investments: initialCloudState.investments,
+        objectives: initialCloudState.objectives,
+        ppAport: initialCloudState.ppAport,
+        settings: initialCloudState.settings
+      };
+    }
+
+    const cloudState = normalizeState(data.data);
+    persistLocalState(cloudState);
+    setCloudStatus('☁ cargado');
+    return {
+      months: cloudState.months,
+      investments: cloudState.investments,
+      objectives: cloudState.objectives,
+      ppAport: cloudState.ppAport,
+      settings: cloudState.settings
+    };
+  }catch(err){
+    console.error(err);
+    setCloudStatus('Error nube · local');
+    alert('No he podido cargar Supabase. La app usará el backup local. Revisa la tabla, RLS, la anon key o la conexión.\n\n' + err.message);
+    return localData;
+  }
 }
 
 function saveData(){
-  localStorage.setItem('pat_months',JSON.stringify(months));
-  localStorage.setItem('pat_investments',JSON.stringify(investments));
-  localStorage.setItem('pat_objectives',JSON.stringify(objectives));
-  localStorage.setItem('pat_pp_aport',JSON.stringify(ppAport));
-  localStorage.setItem('pat_settings',JSON.stringify(settings));
-  localStorage.setItem('pat_version', DATA_VERSION);
-  localStorage.setItem('pat_lastSave',new Date().toISOString());
+  const state = normalizeState(getCurrentState());
+  persistLocalState(state);
+
+  if(applyingRemoteChange || !cloudReady || !currentUser || !supabaseConfigured()) return;
+
+  clearTimeout(remoteSaveTimer);
+  remoteSaveTimer = setTimeout(async()=>{
+    const { error } = await sb.from('finance_state').upsert({
+      user_id: currentUser.id,
+      data: state,
+      updated_at: new Date().toISOString()
+    });
+    if(error){
+      console.error(error);
+      setCloudStatus('Error nube · local');
+    }else{
+      setCloudStatus('☁ guardado');
+    }
+  }, 350);
 }
-let{months,investments,objectives,ppAport,settings}=loadData();
+
+function renderCurrentPage(){
+  const active = document.querySelector('.page.active')?.id?.replace('page-','') || 'dashboard';
+  showPage(active);
+}
+
+function subscribeToCloudChanges(){
+  if(!cloudReady || !currentUser || !supabaseConfigured()) return;
+
+  sb.channel('finance_state_changes')
+    .on('postgres_changes', {
+      event: '*',
+      schema: 'public',
+      table: 'finance_state',
+      filter: `user_id=eq.${currentUser.id}`
+    }, payload => {
+      if(!payload.new?.data) return;
+      applyingRemoteChange = true;
+      const state = normalizeState(payload.new.data);
+      months = state.months;
+      investments = state.investments;
+      objectives = state.objectives;
+      ppAport = state.ppAport;
+      settings = state.settings;
+      persistLocalState(state);
+      renderCurrentPage();
+      setCloudStatus('☁ actualizado');
+      applyingRemoteChange = false;
+    })
+    .subscribe();
+}
+
+// Valores iniciales hasta que termine la carga async desde Supabase
+let months = clone(INITIAL_MONTHS);
+let investments = clone(INITIAL_INVESTMENTS);
+let objectives = clone(INITIAL_OBJECTIVES);
+let ppAport = clone(INITIAL_PP);
+let settings = {gasto:2000,tasa:4,sueldo:null};
 
 // ═══════════════════════════════════════════════
 // HELPERS
@@ -2054,10 +2317,14 @@ function handleImport(e){
 // ═══════════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════════
-document.addEventListener('DOMContentLoaded',()=>{
+document.addEventListener('DOMContentLoaded', async()=>{
   const savedTheme=localStorage.getItem('pat_theme')||'dark';
   setTheme(savedTheme);
+
+  ({months, investments, objectives, ppAport, settings} = await loadData());
   renderDashboard();
+  subscribeToCloudChanges();
+
   window.addEventListener('resize',()=>{const sm=sortedMonths();if(sm.length)drawMainChart(sm)});
 });
 </script>

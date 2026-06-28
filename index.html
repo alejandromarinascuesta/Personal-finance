@@ -507,12 +507,46 @@ body.privacy .badge{filter:none!important} /* percentages always visible */
         <div>
           <div class="section-title">➕ Nueva operación</div>
           <div class="form-grid">
-            <div class="form-group full"><label>Fecha</label><input type="date" id="inv-date"></div>
-            <div class="form-group full"><label>Activo / Producto</label><input type="text" id="inv-asset" placeholder="ej. VUAA S&P 500" list="assets-list" style="font-family:var(--sans)"><datalist id="assets-list"></datalist></div>
-            <div class="form-group"><label>Importe (€)</label><input type="number" id="inv-amount" placeholder="ej. 500" step="0.01"></div>
-            <div class="form-group"><label>Tipo</label><select id="inv-type"><option value="Compra">Compra</option><option value="Venta">Venta</option></select></div>
+            <div class="form-group full"><label>Fecha</label><input type="date" id="inv-date" onchange="onDateChange()"></div>
+            <div class="form-group full">
+              <label>Activo / Producto</label>
+              <input type="text" id="inv-asset" placeholder="ej. VUAA S&P 500" list="assets-list" style="font-family:var(--sans)">
+              <datalist id="assets-list"></datalist>
+            </div>
+            <div class="form-group">
+              <label>Tipo</label>
+              <select id="inv-type"><option value="Compra">Compra</option><option value="Venta">Venta</option><option value="Dividendo">Dividendo</option></select>
+            </div>
+            <div class="form-group">
+              <label>Moneda</label>
+              <select id="inv-currency" onchange="onCurrencyChange()">
+                <option value="EUR">€ EUR</option>
+                <option value="USD">$ USD</option>
+              </select>
+            </div>
+            <div class="form-group full" id="fx-row" style="display:none">
+              <label class="auto-label">Tipo de cambio USD→EUR <span style="color:var(--green);font-size:10px">✦ automático</span></label>
+              <div style="display:flex;gap:8px;align-items:center">
+                <input type="number" id="inv-fx-rate" placeholder="cargando..." step="0.0001" class="auto-field" style="flex:1" oninput="onInvCalc()">
+                <button class="btn btn-ghost btn-sm" onclick="fetchFXRate()" title="Actualizar tipo de cambio" style="flex-shrink:0">↻ Actualizar</button>
+              </div>
+              <span id="fx-hint" style="font-size:11px;color:var(--text-dim)"></span>
+            </div>
+            <div class="form-group">
+              <label id="lbl-amount-orig">Importe <span id="lbl-currency-orig" style="color:var(--accent);font-size:10px">en €</span></label>
+              <input type="number" id="inv-amount-orig" placeholder="ej. 164.76" step="0.01" oninput="onInvCalc()">
+            </div>
+            <div class="form-group" id="eur-result-row" style="display:none">
+              <label class="auto-label">Importe en € <span style="color:var(--green);font-size:10px">✦ convertido</span></label>
+              <input type="number" id="inv-amount" readonly class="auto-field" placeholder="—">
+            </div>
+            <div class="form-group" id="eur-direct-row">
+              <label style="display:none"></label><!-- spacer -->
+              <input type="number" id="inv-amount-eur-direct" placeholder="ej. 500" step="0.01" oninput="onInvAmountDirectChange()" style="display:none">
+            </div>
           </div>
-          <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:8px;padding:10px" onclick="saveInvestment()">Añadir operación</button>
+          <div id="inv-calc-hint" style="font-size:11.5px;color:var(--text-muted);margin:6px 0 10px;min-height:16px"></div>
+          <button class="btn btn-primary" style="width:100%;justify-content:center;padding:10px" onclick="saveInvestment()">Añadir operación</button>
           <div class="divider"></div>
           <!-- PnL por activo -->
           <div class="section-title">P&amp;L por activo</div>
@@ -525,8 +559,17 @@ body.privacy .badge{filter:none!important} /* percentages always visible */
           </div>
           <div class="card">
             <div class="table-wrap">
-              <table>
-                <thead><tr><th>Fecha</th><th>Activo</th><th class="right">Importe</th><th>Tipo</th><th></th></tr></thead>
+              <table class="fixed" style="min-width:480px">
+                <colgroup>
+                  <col style="width:88px"><col style="width:*"><col style="width:72px"><col style="width:72px"><col style="width:88px"><col style="width:58px"><col style="width:40px">
+                </colgroup>
+                <thead><tr>
+                  <th>Fecha</th><th>Activo</th>
+                  <th class="right">Partic.</th>
+                  <th class="right">Precio</th>
+                  <th class="right">Importe</th>
+                  <th>Tipo</th><th></th>
+                </tr></thead>
                 <tbody id="table-investments"></tbody>
               </table>
             </div>
@@ -631,27 +674,51 @@ const INITIAL_MONTHS=[
   {year:2026,month:5,label:"MAY 2026",ahorro_mes:-600,saldo_cuentas:13400,valor_cartera:1960,valor_pp:2500},
   {year:2026,month:6,label:"JUN 2026",ahorro_mes:1000,saldo_cuentas:14400,valor_cartera:null,valor_pp:null},
 ];
+// ═══════════════════════════════════════════════
+// DATOS INICIALES — enriquecidos con extracto Revolut 28 Jun 2026
+// Campos: id, date, amount(€), asset, type, qty, pricePerUnit, costBasis, pnl, currency, notes
+// ═══════════════════════════════════════════════
 const INITIAL_INVESTMENTS=[
-  {id:1,date:"2025-07-30",amount:300,asset:"VUAA S&P 500",type:"Compra"},
-  {id:2,date:"2025-08-29",amount:150,asset:"VUAA S&P 500",type:"Compra"},
-  {id:3,date:"2025-09-25",amount:150,asset:"VUAA S&P 500",type:"Compra"},
-  {id:4,date:"2025-09-25",amount:50,asset:"GOOGL",type:"Compra"},
-  {id:5,date:"2025-10-13",amount:50,asset:"VUAA S&P 500",type:"Compra"},
-  {id:6,date:"2025-10-28",amount:150,asset:"VUAA S&P 500",type:"Compra"},
-  {id:7,date:"2025-10-28",amount:50,asset:"MSFT",type:"Compra"},
-  {id:8,date:"2025-11-11",amount:100,asset:"TNE5",type:"Compra"},
-  {id:9,date:"2025-11-27",amount:150,asset:"VUAA S&P 500",type:"Compra"},
-  {id:10,date:"2025-12-19",amount:150,asset:"VUAA S&P 500",type:"Compra"},
-  {id:11,date:"2025-12-24",amount:204,asset:"BTC",type:"Compra"},
-  {id:12,date:"2025-12-24",amount:-70,asset:"Criptomonedas",type:"Venta"},
-  {id:13,date:"2026-01-04",amount:100,asset:"VLO OIL",type:"Compra"},
-  {id:14,date:"2026-01-07",amount:50,asset:"CHEVRON",type:"Compra"},
-  {id:15,date:"2026-02-27",amount:100,asset:"WEXE MSCI World ex-USA ETF",type:"Compra"},
-  {id:16,date:"2026-04-27",amount:-135,asset:"NVIDIA (Trading 212)",type:"Venta"},
-  {id:17,date:"2026-04-29",amount:-62,asset:"CHEVRON",type:"Venta"},
-  {id:18,date:"2026-06-03",amount:150,asset:"VUAA S&P 500",type:"Compra"},
-  {id:19,date:"2026-06-10",amount:162,asset:"VUAA S&P 500",type:"Compra"},
-  {id:20,date:"2026-06-26",amount:103.95,asset:"VUAA S&P 500",type:"Compra"},
+  // ── VUAA S&P 500 (Revolut EUR) ──────────────────
+  {id:1, date:"2025-07-30",amount:300,   asset:"VUAA S&P 500",type:"Compra", qty:2.83917493, pricePerUnit:105.66, costBasis:300,   currency:"EUR", broker:"Revolut"},
+  {id:2, date:"2025-08-29",amount:150,   asset:"VUAA S&P 500",type:"Compra", qty:1.40609796, pricePerUnit:106.68, costBasis:150,   currency:"EUR", broker:"Revolut"},
+  {id:3, date:"2025-09-25",amount:150,   asset:"VUAA S&P 500",type:"Compra", qty:1.38171802, pricePerUnit:108.56, costBasis:150,   currency:"EUR", broker:"Revolut"},
+  {id:5, date:"2025-10-13",amount:50,    asset:"VUAA S&P 500",type:"Compra", qty:0.45577272, pricePerUnit:109.70, costBasis:50,    currency:"EUR", broker:"Revolut"},
+  {id:6, date:"2025-10-28",amount:150,   asset:"VUAA S&P 500",type:"Compra", qty:1.32714118, pricePerUnit:113.02, costBasis:150,   currency:"EUR", broker:"Revolut"},
+  {id:9, date:"2025-11-27",amount:150,   asset:"VUAA S&P 500",type:"Compra", qty:1.3287871,  pricePerUnit:112.88, costBasis:150,   currency:"EUR", broker:"Revolut"},
+  {id:10,date:"2025-12-19",amount:150,   asset:"VUAA S&P 500",type:"Compra", qty:1.34577547, pricePerUnit:111.46, costBasis:150,   currency:"EUR", broker:"Revolut"},
+  {id:18,date:"2026-06-03",amount:150,   asset:"VUAA S&P 500",type:"Compra", qty:1.18788358, pricePerUnit:126.28, costBasis:150,   currency:"EUR", broker:"Revolut"},
+  {id:19,date:"2026-06-10",amount:162,   asset:"VUAA S&P 500",type:"Compra", qty:1.31857398, pricePerUnit:122.86, costBasis:162,   currency:"EUR", broker:"Revolut"},
+  // ── TNE5 Telefónica (Revolut EUR) ───────────────
+  {id:8, date:"2025-11-11",amount:101.97,asset:"TNE5",         type:"Compra", qty:27,          pricePerUnit:3.70,   costBasis:101.97,currency:"EUR", broker:"Revolut", notes:"incl. €1 comisión"},
+  // ── WEXE MSCI World ex-USA (Revolut EUR) ────────
+  {id:15,date:"2026-02-27",amount:100,   asset:"WEXE",         type:"Compra", qty:8.64304235, pricePerUnit:11.57,  costBasis:100,   currency:"EUR", broker:"Revolut"},
+  // ── GOOGL Alphabet (Revolut USD→EUR) ────────────
+  {id:4, date:"2025-09-25",amount:51.17, asset:"GOOGL",        type:"Compra", qty:0.2458009,  pricePerUnit:208.89, costBasis:51.17, currency:"USD", broker:"Revolut", notes:"$60 @ cambio 0.856"},
+  // ── MSFT Microsoft (Revolut USD→EUR) ────────────
+  {id:7, date:"2025-10-28",amount:49.62, asset:"MSFT",         type:"Compra", qty:0.10541326, pricePerUnit:470.71, costBasis:49.62, currency:"USD", broker:"Revolut", notes:"$58.03 @ cambio 0.856"},
+  // ── VLO Valero (Revolut USD→EUR) ────────────────
+  {id:13,date:"2026-01-05",amount:99.87, asset:"VLO",          type:"Compra", qty:0.64640883, pricePerUnit:154.54, costBasis:99.87, currency:"USD", broker:"Revolut", notes:"$117 @ cambio 0.854"},
+  {id:22,date:"2026-06-26",amount:-145.03,asset:"VLO",         type:"Venta",  qty:0.64640883, pricePerUnit:254.92, costBasis:99.87, pnl:45.16, currency:"USD", broker:"Revolut", notes:"$164.78 @ cambio 0.88 · P&L oficial Revolut: +€45.16"},
+  // ── CVX Chevron (Revolut USD→EUR) ───────────────
+  {id:14,date:"2026-01-07",amount:50.52, asset:"CVX",          type:"Compra", qty:0.37781762, pricePerUnit:156.16, costBasis:50.52, currency:"USD", broker:"Revolut", notes:"$59 @ cambio 0.856"},
+  {id:21,date:"2026-04-29",amount:-61.51,asset:"CVX",          type:"Venta",  qty:0.37781762, pricePerUnit:190.25, costBasis:50.52, pnl:10.99, currency:"USD", broker:"Revolut", notes:"$71.86 @ cambio 0.856 · P&L oficial Revolut: +€10.99"},
+  // ── DIVIDENDOS (no afectan cost basis ni total invertido) ──
+  {id:30,date:"2025-12-18",amount:3.28,  asset:"TNE5",         type:"Dividendo", currency:"EUR", broker:"Revolut", notes:"Bruto €4.05 - retención €0.77"},
+  {id:31,date:"2025-12-11",amount:0.06,  asset:"MSFT",         type:"Dividendo", currency:"USD", broker:"Revolut", notes:"$0.08 neto @ cambio 0.852"},
+  {id:32,date:"2025-12-15",amount:0.03,  asset:"GOOGL",        type:"Dividendo", currency:"USD", broker:"Revolut", notes:"$0.04 neto @ cambio 0.851"},
+  {id:33,date:"2026-03-09",amount:0.55,  asset:"VLO",          type:"Dividendo", currency:"USD", broker:"Revolut", notes:"$0.65 neto @ cambio 0.861"},
+  {id:34,date:"2026-03-10",amount:0.49,  asset:"CVX",          type:"Dividendo", currency:"USD", broker:"Revolut", notes:"$0.57 neto @ cambio 0.861"},
+  {id:35,date:"2026-03-16",amount:0.03,  asset:"GOOGL",        type:"Dividendo", currency:"USD", broker:"Revolut", notes:"$0.04 neto"},
+  {id:36,date:"2026-03-18",amount:0.06,  asset:"MSFT",         type:"Dividendo", currency:"USD", broker:"Revolut", notes:"$0.08 neto"},
+  {id:37,date:"2026-06-11",amount:0.06,  asset:"MSFT",         type:"Dividendo", currency:"USD", broker:"Revolut", notes:"$0.08 neto"},
+  {id:38,date:"2026-06-15",amount:0.03,  asset:"GOOGL",        type:"Dividendo", currency:"USD", broker:"Revolut", notes:"$0.04 neto"},
+  {id:39,date:"2026-06-18",amount:3.28,  asset:"TNE5",         type:"Dividendo", currency:"EUR", broker:"Revolut", notes:"Bruto €4.05 - retención €0.77"},
+  {id:40,date:"2026-06-23",amount:0.57,  asset:"VLO",          type:"Dividendo", currency:"USD", broker:"Revolut", notes:"$0.65 neto @ cambio 0.879"},
+  // ── OTRAS PLATAFORMAS (Trading 212 / Wallet) ────
+  {id:11,date:"2025-12-24",amount:204,   asset:"BTC",          type:"Compra", currency:"EUR", broker:"Wallet/Exchange"},
+  {id:12,date:"2025-12-24",amount:-70,   asset:"Criptomonedas",type:"Venta",  currency:"EUR", broker:"Wallet/Exchange", notes:"Sin cost basis disponible"},
+  {id:16,date:"2026-04-27",amount:-135,  asset:"NVIDIA",       type:"Venta",  currency:"EUR", broker:"Trading212",      notes:"Sin compra registrada — posición previa"},
 ];
 const INITIAL_OBJECTIVES={"2025":{ahorro:11000,patrimonio:13000},"2026":{ahorro:27000,patrimonio:35000}};
 const INITIAL_PP=[
@@ -664,7 +731,7 @@ const INITIAL_PP=[
 // ═══════════════════════════════════════════════
 // PERSISTENCE — user edits always win
 // ═══════════════════════════════════════════════
-const DATA_VERSION = 4; // bump when INITIAL data changes
+const DATA_VERSION = 5; // bump when INITIAL data changes
 
 function loadData(){
   const savedVersion = parseInt(localStorage.getItem('pat_version')||'0');
@@ -721,14 +788,12 @@ function fmtPct(v){if(v===null||v===undefined||isNaN(v))return'—';return(v*100
 function numClass(v){return v>0?'num-pos':v<0?'num-neg':'num-neutral'}
 function sortedMonths(){return[...months].sort((a,b)=>a.year!==b.year?a.year-b.year:a.month-b.month)}
 function patrimonio(m){return(m.saldo_cuentas||0)+(m.valor_cartera||0)+(m.valor_pp||0)}
-// totalInvertidoHasta: net cost basis = buys - sells up to date
-// investments with amount>0 = compra, amount<0 = venta
-// The sum of all amounts (with sign) gives net invested correctly
+// totalInvertidoHasta: net cost basis = buys - sells (excluding dividends)
 function totalInvertidoHasta(year,month){
   const cut=`${year}-${String(month).padStart(2,'0')}-31`;
-  // Only count positive (buy) amounts for cost basis — sells reduce it
-  const buys=investments.filter(i=>i.date<=cut&&i.amount>0).reduce((s,i)=>s+i.amount,0);
-  const sells=investments.filter(i=>i.date<=cut&&i.amount<0).reduce((s,i)=>s+Math.abs(i.amount),0);
+  const ops=investments.filter(i=>i.date<=cut&&i.type!=='Dividendo');
+  const buys=ops.filter(i=>i.amount>0).reduce((s,i)=>s+i.amount,0);
+  const sells=ops.filter(i=>i.amount<0).reduce((s,i)=>s+Math.abs(i.amount),0);
   return buys-sells;
 }
 function totalPPHasta(year,month){return ppAport.filter(p=>p.year<year||(p.year===year&&p.month<=month)).reduce((s,p)=>s+(p.amount||0),0)}
@@ -1527,136 +1592,358 @@ function clearForm(){['form-ahorro-mes','form-valor-cartera','form-aport-pp','fo
 // INVERSIONES — PnL helpers
 // ═══════════════════════════════════════════════
 function pnlByAsset(){
-  // Build per-asset: invested (buys - sells at cost), current value unknown so show cost basis + realized PnL
+  /*
+    Usa costBasis oficial de Revolut cuando disponible.
+    P&L realizado = suma de pnl en ventas (campo pnl del extracto oficial).
+    Si no hay campo pnl, calcula: ingresoVenta - costeBasis.
+    Dividendos se contabilizan aparte, no como coste de inversión.
+  */
   const map={};
   investments.forEach(i=>{
-    if(!map[i.asset])map[i.asset]={invested:0,sold:0,ops:0};
-    if(i.amount>0){map[i.asset].invested+=i.amount;}   // compra: suma coste
-    else{map[i.asset].sold+=Math.abs(i.amount);}        // venta: dinero recuperado
-    map[i.asset].ops++;
+    if(i.type==='Dividendo') return; // dividendos van aparte
+    if(!map[i.asset]) map[i.asset]={compras:0,ventas:0,costBasis:0,pnlRealizado:0,hasPnl:false,broker:i.broker||'—'};
+    const d=map[i.asset];
+    if(i.amount>0){ // compra
+      d.compras += i.amount;
+      d.costBasis += i.costBasis ?? i.amount;
+    } else { // venta
+      d.ventas += Math.abs(i.amount);
+      if(i.pnl != null){ // tenemos P&L oficial de Revolut
+        d.pnlRealizado += i.pnl;
+        d.hasPnl = true;
+      } else { // estimación: proceeds - costBasis proporcional
+        const costeProp = d.costBasis * (Math.abs(i.amount) / (d.compras || Math.abs(i.amount)));
+        d.pnlRealizado += Math.abs(i.amount) - costeProp;
+      }
+    }
   });
   return Object.entries(map).map(([asset,d])=>({
     asset,
-    invested: d.invested,         // total € comprado
-    sold: d.sold,                 // total € vendido (realizado)
-    netCost: d.invested-d.sold,   // coste neto actual en cartera
-    realizedPnL: d.sold>0?d.sold-d.invested*(d.sold/(d.invested||1)):0, // simplificación FIFO
-    ops: d.ops,
-  })).sort((a,b)=>b.invested-a.invested);
+    compras:    d.compras,
+    ventas:     d.ventas,
+    costBasis:  d.costBasis,
+    enCartera:  Math.max(0, d.costBasis - d.ventas),
+    pnlRealizado: d.ventas>0 ? d.pnlRealizado : null,
+    pnlPct:     d.ventas>0 && d.costBasis>0 ? d.pnlRealizado/(d.costBasis*Math.min(1,d.ventas/d.compras)) : null,
+    hasPnl:     d.hasPnl,
+    broker:     d.broker,
+  })).sort((a,b) => b.compras - a.compras);
+}
+
+function dividendosTotales(){
+  return investments.filter(i=>i.type==='Dividendo').reduce((s,i)=>s+i.amount,0);
+}
+
+function dividendosPorActivo(){
+  const map={};
+  investments.filter(i=>i.type==='Dividendo').forEach(i=>{
+    map[i.asset]=(map[i.asset]||0)+i.amount;
+  });
+  return Object.entries(map).sort((a,b)=>b[1]-a[1]);
 }
 
 function renderInvestments(){
   document.getElementById('inv-date').value=new Date().toISOString().split('T')[0];
   const assets=[...new Set(investments.map(i=>i.asset))];
   document.getElementById('assets-list').innerHTML=assets.map(a=>`<option value="${a}">`).join('');
+  // Init currency state
+  document.getElementById('inv-currency').value='EUR';
+  onCurrencyChange();
 
   // ── Log table ──
   const sorted=[...investments].sort((a,b)=>b.date.localeCompare(a.date));
-  document.getElementById('table-investments').innerHTML=sorted.map(inv=>`<tr>
-    <td>${inv.date}</td>
-    <td class="label-cell" style="font-family:var(--sans);max-width:120px;overflow:hidden;text-overflow:ellipsis">${inv.asset}</td>
-    <td class="right ${inv.amount<0?'num-neg':'num-pos'}">${inv.amount<0?'-':''}${fmt(Math.abs(inv.amount))}</td>
-    <td><span class="badge ${inv.type==='Compra'?'badge-green':'badge-red'}">${inv.type}</span></td>
-    <td><button class="btn btn-danger btn-sm" onclick="deleteInvestment(${inv.id})">✕</button></td>
-  </tr>`).join('');
+  document.getElementById('table-investments').innerHTML=sorted.map(inv=>{
+    const isDividendo = inv.type==='Dividendo';
+    const isVenta = inv.amount<0;
+    const amtColor = isDividendo?'var(--amber)':isVenta?'var(--red)':'var(--green)';
+    const badge = isDividendo
+      ?`<span class="badge badge-amber">Dividendo</span>`
+      :`<span class="badge ${isVenta?'badge-red':'badge-green'}">${inv.type}</span>`;
+    const detail = inv.qty
+      ?`<br><span style="color:var(--text-dim);font-size:10px">${inv.qty} u. × ${inv.pricePerUnit?inv.pricePerUnit.toFixed(2)+'€':''}</span>`
+      :(inv.notes?`<br><span style="color:var(--text-dim);font-size:10px">${inv.notes}</span>`:'');
+    const brokerTag = inv.broker&&inv.broker!=='Revolut'
+      ?`<span style="font-size:10px;color:var(--accent);margin-left:4px">${inv.broker}</span>`:'';
+    const pnlTag = inv.pnl!=null
+      ?`<br><span style="font-size:10px;color:${inv.pnl>=0?'var(--green)':'var(--red)'}">P&L ${inv.pnl>=0?'+':''}${inv.pnl.toFixed(2)}€</span>`:'';
+    return`<tr>
+      <td style="color:var(--text-muted)">${inv.date}</td>
+      <td class="label-cell" style="line-height:1.5">${inv.asset}${brokerTag}${detail}</td>
+      <td class="right" style="font-weight:600;color:${amtColor};line-height:1.5">${isVenta?'-':isDividendo?'':'+'} ${fmt(Math.abs(inv.amount))}${pnlTag}</td>
+      <td>${badge}</td>
+      <td><button class="btn btn-danger btn-sm" onclick="deleteInvestment(${inv.id})">✕</button></td>
+    </tr>`;
+  }).join('');
   document.getElementById('inv-count').textContent=`${investments.length} operaciones`;
 
-  // ── Global PnL ──
-  const totalBuys=investments.filter(i=>i.amount>0).reduce((s,i)=>s+i.amount,0);
-  const totalSells=investments.filter(i=>i.amount<0).reduce((s,i)=>s+Math.abs(i.amount),0);
-  const netInvested=totalBuys-totalSells; // dinero neto actualmente en mercado
-  // Get current cartera value from last month with data
+  // ── Global PnL (exclude dividends from invested amounts) ──
+  const ops = investments.filter(i=>i.type!=='Dividendo');
+  const totalBuys  = ops.filter(i=>i.amount>0).reduce((s,i)=>s+i.amount,0);
+  const totalSells = ops.filter(i=>i.amount<0).reduce((s,i)=>s+Math.abs(i.amount),0);
+  const netInvested = totalBuys - totalSells;
+  const totalDivs   = dividendosTotales();
   const sm=sortedMonths();
   const lastWithCartera=[...sm].reverse().find(m=>m.valor_cartera!==null&&m.valor_cartera!==undefined);
   const currentCartera=lastWithCartera?lastWithCartera.valor_cartera:null;
   const unrealizedPnL=currentCartera!==null?currentCartera-netInvested:null;
   const unrealizedPct=netInvested>0&&unrealizedPnL!==null?unrealizedPnL/netInvested:null;
-  const totalRealizedPnL=totalSells-totalBuys*(totalSells/(totalBuys||1)); // rough realized
+  // Official realized P&L from Revolut data
+  const totalRealizedPnL = investments.filter(i=>i.pnl!=null).reduce((s,i)=>s+i.pnl,0);
 
   document.getElementById('pnl-kpis').innerHTML=`
     <div class="kpi-card blue">
       <div class="kpi-label">Total comprado</div>
       <div class="kpi-value sensitive" style="font-size:20px">${fmt(totalBuys)}</div>
-      <div class="kpi-sub">${sorted.filter(i=>i.amount>0).length} compras</div>
+      <div class="kpi-sub">Neto en cartera: <span class="sensitive">${fmt(netInvested)}</span></div>
     </div>
-    <div class="kpi-card" style="border-top:2px solid var(--red)">
-      <div class="kpi-label">Total vendido</div>
-      <div class="kpi-value sensitive" style="font-size:20px">${fmt(totalSells)}</div>
-      <div class="kpi-sub">${sorted.filter(i=>i.amount<0).length} ventas</div>
+    <div class="kpi-card green">
+      <div class="kpi-label">P&amp;L realizado</div>
+      <div class="kpi-value sensitive ${numClass(totalRealizedPnL)}" style="font-size:20px">${totalRealizedPnL>=0?'+':''}${fmt(totalRealizedPnL,2)}</div>
+      <div class="kpi-sub">Fuente: Revolut FIFO · ${investments.filter(i=>i.pnl!=null).length} ventas</div>
     </div>
-    <div class="kpi-card" style="border-top:2px solid var(--green)">
+    <div class="kpi-card amber">
       <div class="kpi-label">P&amp;L no realizado</div>
       <div class="kpi-value sensitive ${unrealizedPnL!==null?numClass(unrealizedPnL):''}" style="font-size:20px">${unrealizedPnL!==null?(unrealizedPnL>=0?'+':'')+fmt(unrealizedPnL,2):'—'}</div>
-      <div class="kpi-sub">${unrealizedPct!==null?`<span class="${numClass(unrealizedPct)}">${unrealizedPct>=0?'+':''}${fmtPct(unrealizedPct)}</span> sobre ${fmt(netInvested)} neto`:`Introduce valor cartera en Nuevo mes`}</div>
+      <div class="kpi-sub">${unrealizedPct!==null?`<span class="${numClass(unrealizedPct)}">${unrealizedPct>=0?'+':''}${fmtPct(unrealizedPct)}</span> sobre coste neto`:'Añade valor cartera en Nuevo mes'}</div>
     </div>
-    <div class="kpi-card" style="border-top:2px solid var(--amber)">
-      <div class="kpi-label">Neto en mercado</div>
-      <div class="kpi-value sensitive" style="font-size:20px">${fmt(netInvested)}</div>
-      <div class="kpi-sub sensitive">${currentCartera!==null?`Cartera actual: ${fmt(currentCartera)}`:'Sin valor cartera aún'}</div>
+    <div class="kpi-card purple">
+      <div class="kpi-label">Dividendos cobrados</div>
+      <div class="kpi-value sensitive num-pos" style="font-size:20px">+${fmt(totalDivs,2)}</div>
+      <div class="kpi-sub">${investments.filter(i=>i.type==='Dividendo').length} pagos · neto tras retención</div>
     </div>`;
 
   // ── PnL por activo ──
-  const byAsset=pnlByAsset();
-  const hasSells=byAsset.some(a=>a.sold>0);
-  const totalNeto=byAsset.reduce((s,a)=>s+a.netCost,0);
-  const totalPnLValue=unrealizedPnL; // vs invested
+  const byAsset = pnlByAsset();
+  const hasSells = byAsset.some(a => a.ventas > 0);
+  // Total P&L realizado global
+  const totalPnLRealizado = byAsset.reduce((s,a) => s + (a.pnlRealizado ?? 0), 0);
+  const totalEnCartera    = byAsset.reduce((s,a) => s + a.enCartera, 0);
 
-  document.getElementById('pnl-by-asset').innerHTML=`
+  document.getElementById('pnl-by-asset').innerHTML = `
     <div class="table-wrap" style="margin-top:4px">
       <table class="fixed" style="min-width:260px">
         <colgroup>
           ${hasSells
-            ?'<col style="width:42%"><col style="width:20%"><col style="width:19%"><col style="width:19%">'
-            :'<col style="width:60%"><col style="width:40%">'}
+            ? '<col style="width:38%"><col style="width:19%"><col style="width:19%"><col style="width:24%">'
+            : '<col style="width:62%"><col style="width:38%">'}
         </colgroup>
         <thead><tr>
           <th style="padding-left:8px">Activo</th>
           <th class="right">Invertido</th>
-          ${hasSells?'<th class="right">Vendido</th><th class="right">Neto</th>':''}
+          ${hasSells ? '<th class="right">Vendido</th><th class="right">P&amp;L realizado</th>' : ''}
         </tr></thead>
         <tbody>
-          ${byAsset.map(({asset,invested,sold,netCost})=>`<tr>
-            <td class="label-cell" style="padding-left:8px;overflow:hidden;text-overflow:ellipsis" title="${asset}">${asset}</td>
-            <td class="right sensitive" style="color:var(--text-muted)">${fmt(invested)}</td>
-            ${hasSells?`
-            <td class="right sensitive" style="color:${sold>0?'var(--red)':'var(--text-dim)'}">${sold>0?fmt(sold):'—'}</td>
-            <td class="right sensitive" style="font-weight:600;color:${netCost>0?'var(--green)':netCost<0?'var(--red)':'var(--text-muted)'}">${netCost>0?'+':''}${fmt(netCost)}</td>`:''}
-          </tr>`).join('')}
+          ${byAsset.map(({asset, compras, ventas, enCartera, pnlRealizado, pnlPct}) => {
+            const vendidoCell = hasSells
+              ? `<td class="right sensitive" style="color:${ventas>0?'var(--text-muted)':'var(--text-dim)'}">${ventas>0 ? fmt(ventas) : '—'}</td>`
+              : '';
+            // P&L realizado: solo si hay ventas en este activo
+            const pnlCell = hasSells
+              ? `<td class="right sensitive" style="font-weight:600;color:${
+                  pnlRealizado===null ? 'var(--text-dim)'
+                  : pnlRealizado > 0 ? 'var(--green)'
+                  : pnlRealizado < 0 ? 'var(--red)'
+                  : 'var(--text-muted)'
+                }">${
+                  pnlRealizado === null
+                    ? '—'
+                    : (pnlRealizado >= 0 ? '+' : '') + fmt(pnlRealizado) +
+                      (pnlPct !== null ? ` <span style="font-size:10px;opacity:.75">(${pnlPct>=0?'+':''}${fmtPct(pnlPct)})</span>` : '')
+                }</td>`
+              : '';
+            return `<tr>
+              <td class="label-cell" style="padding-left:8px;overflow:hidden;text-overflow:ellipsis" title="${asset}">${asset}</td>
+              <td class="right sensitive" style="color:var(--text-muted)">${fmt(compras)}</td>
+              ${vendidoCell}${pnlCell}
+            </tr>`;
+          }).join('')}
         </tbody>
       </table>
     </div>
+
     <!-- P&L Total -->
-    <div style="margin-top:12px;padding:12px 14px;background:var(--surface2);border-radius:10px;border:1px solid var(--border)">
+    <div style="margin-top:12px;padding:14px 16px;background:var(--surface2);border-radius:10px;border:1px solid var(--border)">
       <div style="font-size:10px;font-weight:600;color:var(--text-dim);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">P&amp;L Total</div>
-      <div style="display:grid;gap:7px">
+      <div style="display:grid;gap:8px">
         <div style="display:flex;justify-content:space-between;font-size:12.5px">
-          <span style="color:var(--text-muted)">Total invertido neto</span>
+          <span style="color:var(--text-muted)">Dinero invertido neto</span>
           <span class="sensitive" style="font-family:var(--mono)">${fmt(netInvested)}</span>
         </div>
         <div style="display:flex;justify-content:space-between;font-size:12.5px">
           <span style="color:var(--text-muted)">Valor cartera actual</span>
-          <span class="sensitive" style="font-family:var(--mono)">${currentCartera!==null?fmt(currentCartera):'Introduce valor en Nuevo mes'}</span>
+          <span class="sensitive" style="font-family:var(--mono)">${currentCartera!==null?fmt(currentCartera):'—'}</span>
+        </div>
+        ${hasSells?`
+        <div style="display:flex;justify-content:space-between;font-size:12.5px">
+          <span style="color:var(--text-muted)">P&amp;L realizado <span style="font-size:10px">(FIFO Revolut)</span></span>
+          <span class="sensitive" style="font-family:var(--mono);color:${totalRealizedPnL>=0?'var(--green)':'var(--red)'}">${totalRealizedPnL>=0?'+':''}${fmt(totalRealizedPnL,2)}</span>
+        </div>`:''}
+        <div style="display:flex;justify-content:space-between;font-size:12.5px">
+          <span style="color:var(--text-muted)">Dividendos cobrados</span>
+          <span class="sensitive" style="font-family:var(--mono);color:var(--amber)">+${fmt(totalDivs,2)}</span>
         </div>
         <div style="height:1px;background:var(--border);margin:2px 0"></div>
-        <div style="display:flex;justify-content:space-between;font-size:14px;font-weight:700">
+        <div style="display:flex;justify-content:space-between;font-size:13.5px;font-weight:700">
           <span style="color:var(--text)">P&amp;L no realizado</span>
-          <span class="sensitive" style="font-family:var(--mono);color:${unrealizedPnL!==null?(unrealizedPnL>=0?'var(--green)':'var(--red)'):'var(--text-muted)'}">${unrealizedPnL!==null?(unrealizedPnL>=0?'+':'')+fmt(unrealizedPnL,2):'—'}</span>
+          <span class="sensitive" style="font-family:var(--mono);color:${unrealizedPnL!==null?(unrealizedPnL>=0?'var(--green)':'var(--red)'):'var(--text-muted)'}">${unrealizedPnL!==null?(unrealizedPnL>=0?'+':'')+fmt(unrealizedPnL,2):'Añade valor cartera'}</span>
         </div>
-        ${unrealizedPct!==null?`<div style="text-align:right;font-size:11px;color:${numClass(unrealizedPct)==='num-pos'?'var(--green)':'var(--red)'}">${unrealizedPct>=0?'+':''}${fmtPct(unrealizedPct)} sobre coste</div>`:''}
+        ${unrealizedPct!==null?`<div style="text-align:right;font-size:11px;color:${unrealizedPct>=0?'var(--green)':'var(--red)'}">${unrealizedPct>=0?'+':''}${fmtPct(unrealizedPct)} sobre coste neto</div>`:''}
+        <div style="display:flex;justify-content:space-between;font-size:12px;padding-top:4px;border-top:1px dashed var(--border)">
+          <span style="color:var(--text-muted)">Ganancia total estimada</span>
+          <span class="sensitive" style="font-family:var(--mono);font-weight:600;color:${((unrealizedPnL||0)+totalRealizedPnL+totalDivs)>=0?'var(--green)':'var(--red)'}">${((unrealizedPnL||0)+totalRealizedPnL+totalDivs)>=0?'+':''}${fmt((unrealizedPnL||0)+totalRealizedPnL+totalDivs,2)}</span>
+        </div>
       </div>
     </div>`;
 }
-function saveInvestment(){
-  const date=document.getElementById('inv-date').value,asset=document.getElementById('inv-asset').value.trim();
-  const amountRaw=parseFloat(document.getElementById('inv-amount').value),type=document.getElementById('inv-type').value;
-  if(!date||!asset||isNaN(amountRaw)||amountRaw<=0){alert('Completa todos los campos');return}
-  const amount=type==='Venta'?-Math.abs(amountRaw):Math.abs(amountRaw);
-  const newId=Math.max(0,...investments.map(i=>i.id))+1;
-  investments.push({id:newId,date,amount,asset,type});saveData();
-  document.getElementById('inv-asset').value='';document.getElementById('inv-amount').value='';
-  renderInvestments();showToast('✓ Operación añadida');
+// ═══════════════════════════════════════════════
+// INVERSIONES — FX conversion
+// ═══════════════════════════════════════════════
+let _fxCache = {}; // { 'YYYY-MM-DD': rate }
+
+async function fetchFXRate(){
+  const date = document.getElementById('inv-date').value;
+  const currency = document.getElementById('inv-currency').value;
+  if(currency === 'EUR') return 1;
+  if(!date){ showToast('Elige fecha primero'); return; }
+
+  // Use cached rate if available
+  const cacheKey = `${date}_${currency}`;
+  if(_fxCache[cacheKey]){
+    document.getElementById('inv-fx-rate').value = _fxCache[cacheKey].toFixed(4);
+    document.getElementById('fx-hint').textContent = `1 ${currency} = ${_fxCache[cacheKey].toFixed(4)} € (caché)`;
+    onInvCalc();
+    return _fxCache[cacheKey];
+  }
+
+  const hint = document.getElementById('fx-hint');
+  hint.textContent = 'Obteniendo tipo de cambio...';
+  document.getElementById('inv-fx-rate').value = '';
+
+  try {
+    // Frankfurter API — free, no key needed, BCE data
+    // If date is today or future, use /latest
+    const today = new Date().toISOString().split('T')[0];
+    const apiDate = date >= today ? 'latest' : date;
+    const res = await fetch(`https://api.frankfurter.app/${apiDate}?from=${currency}&to=EUR`);
+    if(!res.ok) throw new Error('API error');
+    const data = await res.json();
+    const rate = data.rates.EUR;
+    _fxCache[cacheKey] = rate;
+    document.getElementById('inv-fx-rate').value = rate.toFixed(4);
+    hint.textContent = `1 ${currency} = ${rate.toFixed(4)} € · ${data.date}`;
+    onInvCalc();
+    return rate;
+  } catch(e) {
+    hint.textContent = '⚠ No se pudo obtener. Introduce el tipo manualmente.';
+    document.getElementById('inv-fx-rate').removeAttribute('readonly');
+    document.getElementById('inv-fx-rate').classList.remove('auto-field');
+    return null;
+  }
 }
-function deleteInvestment(id){if(!confirm('¿Eliminar?'))return;investments=investments.filter(i=>i.id!==id);saveData();renderInvestments();showToast('Eliminado')}
+
+function onDateChange(){
+  const currency = document.getElementById('inv-currency').value;
+  if(currency !== 'EUR') fetchFXRate();
+}
+
+function onCurrencyChange(){
+  const currency = document.getElementById('inv-currency').value;
+  const fxRow = document.getElementById('fx-row');
+  const eurRow = document.getElementById('eur-result-row');
+  const lblCurr = document.getElementById('lbl-currency-orig');
+
+  if(currency === 'USD'){
+    fxRow.style.display = 'block';
+    eurRow.style.display = 'block';
+    lblCurr.textContent = 'en USD $';
+    fetchFXRate();
+  } else {
+    fxRow.style.display = 'none';
+    eurRow.style.display = 'none';
+    lblCurr.textContent = 'en €';
+    document.getElementById('inv-amount').value = '';
+    document.getElementById('inv-calc-hint').textContent = '';
+  }
+}
+
+function onInvCalc(){
+  const currency = document.getElementById('inv-currency').value;
+  const origAmount = parseFloat(document.getElementById('inv-amount-orig').value);
+  const hint = document.getElementById('inv-calc-hint');
+
+  if(currency === 'USD'){
+    const rate = parseFloat(document.getElementById('inv-fx-rate').value);
+    if(!isNaN(origAmount) && origAmount > 0 && !isNaN(rate) && rate > 0){
+      const eur = origAmount * rate;
+      document.getElementById('inv-amount').value = eur.toFixed(2);
+      hint.textContent = `${origAmount.toFixed(2)} USD × ${rate.toFixed(4)} = ${eur.toFixed(2)} €`;
+    } else {
+      document.getElementById('inv-amount').value = '';
+      hint.textContent = '';
+    }
+  }
+}
+
+function onInvAmountDirectChange(){
+  // legacy — not used in new form but keep for safety
+}
+function onInvAmountChange(){ onInvCalc(); }
+
+function getFinalEurAmount(){
+  const currency = document.getElementById('inv-currency').value;
+  if(currency === 'EUR'){
+    return parseFloat(document.getElementById('inv-amount-orig').value);
+  } else {
+    return parseFloat(document.getElementById('inv-amount').value);
+  }
+}
+
+function saveInvestment(){
+  const date  = document.getElementById('inv-date').value;
+  const asset = document.getElementById('inv-asset').value.trim();
+  const type  = document.getElementById('inv-type').value;
+  const currency = document.getElementById('inv-currency').value;
+  const amountRaw = getFinalEurAmount();
+  const origAmount = parseFloat(document.getElementById('inv-amount-orig').value);
+  const fxRate = currency === 'USD' ? parseFloat(document.getElementById('inv-fx-rate').value) : 1;
+
+  if(!date || !asset || isNaN(amountRaw) || amountRaw <= 0){
+    alert('Completa todos los campos. Asegúrate de tener el importe en €.');
+    return;
+  }
+
+  const amount = type === 'Venta' ? -Math.abs(amountRaw) : Math.abs(amountRaw);
+  const newId  = Math.max(0, ...investments.map(i => i.id)) + 1;
+  const record = {
+    id: newId, date, amount, asset, type,
+    currency: currency !== 'EUR' ? currency : undefined,
+    origAmount: currency !== 'EUR' ? origAmount : undefined,
+    fxRate: currency !== 'EUR' ? fxRate : undefined,
+  };
+  investments.push(record);
+  saveData();
+
+  // Reset form
+  document.getElementById('inv-asset').value = '';
+  document.getElementById('inv-amount-orig').value = '';
+  document.getElementById('inv-amount').value = '';
+  document.getElementById('inv-fx-rate').value = '';
+  document.getElementById('inv-calc-hint').textContent = '';
+  document.getElementById('fx-hint').textContent = '';
+  document.getElementById('inv-currency').value = 'EUR';
+  onCurrencyChange();
+
+  renderInvestments();
+  showToast('✓ Operación añadida');
+}
+
+function deleteInvestment(id){
+  if(!confirm('¿Eliminar?')) return;
+  investments = investments.filter(i => i.id !== id);
+  saveData();
+  renderInvestments();
+  showToast('Eliminado');
+}
 
 // ═══════════════════════════════════════════════
 // OBJETIVOS

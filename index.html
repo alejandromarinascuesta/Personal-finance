@@ -366,7 +366,11 @@ body.privacy .badge{filter:none!important} /* percentages always visible */
         <button class="btn-icon" id="btn-theme" onclick="toggleTheme()" title="Cambiar tema">🌙</button>
         <button class="btn btn-ghost btn-sm" onclick="exportData()">⬇ Backup</button>
         <button class="btn btn-ghost btn-sm" onclick="importData()">⬆ Restaurar</button>
-        <button class="btn btn-ghost btn-sm" onclick="doLogout()" title="Cerrar sesión" style="color:var(--red)">⎋ Salir</button>
+        <div class="user-chip" id="user-chip" style="display:none">
+          <div class="user-avatar" id="user-avatar">?</div>
+          <span class="user-email" id="user-email-label">—</span>
+          <button class="btn-logout" onclick="doLogout()" title="Cerrar sesión">⏏</button>
+        </div>
         <button class="btn btn-primary btn-sm" onclick="showPage('nuevo-mes')">+ Nuevo mes</button>
         <input type="file" id="import-file" accept=".json" style="display:none" onchange="handleImport(event)">
       </div>
@@ -2307,6 +2311,12 @@ async function doLogout(){
 
 async function initApp(user){
   DEVICE_ID = user.id;
+  // Populate user chip
+  const email = user.email || '';
+  const initial = email.charAt(0).toUpperCase() || '?';
+  document.getElementById('user-avatar').textContent = initial;
+  document.getElementById('user-email-label').textContent = email;
+  document.getElementById('user-chip').style.display = 'flex';
   // Hide auth screen, show app
   const authScreen = document.getElementById('auth-screen');
   authScreen.classList.add('hidden');

@@ -738,7 +738,7 @@ const DATA_VERSION = 5; // bump when INITIAL data changes
 //    Project URL: Settings → API → Project URL
 //    Anon/Public key: Settings → API → Project API Keys → anon/public
 const SUPABASE_URL = 'https://tbtkaeunslcffplmencs.supabase.co';
-const SUPABASE_ANON_KEY = 'PEGA_AQUI_TU_ANON_PUBLIC_KEY';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRidGthZXVuc2xjZmZwbG1lbmNzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI2Mjc5OTUsImV4cCI6MjA5ODIwMzk5NX0.VJbhh6Pk5dhNjg4ZQm5lr6fRuT47TwtWhB8WcZTwRAQ';
 
 // Cliente Supabase. OJO: nunca pegues aquí la service_role key.
 const sb = window.supabase?.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {

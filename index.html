@@ -305,6 +305,78 @@ body.privacy .badge{filter:none!important} /* percentages always visible */
   .chart-grid{gap:16px;margin-bottom:24px}
   .insights-grid{grid-template-columns:repeat(3,1fr)}
 }
+
+/* ── AUTH SCREEN ── */
+#auth-screen{
+  position:fixed;inset:0;z-index:9999;
+  display:flex;align-items:center;justify-content:center;
+  background:linear-gradient(135deg,#0a0e1a 0%,#0f1525 50%,#091020 100%);
+  transition:opacity .4s ease;
+  padding:20px;
+}
+#auth-screen::before{
+  content:'';position:absolute;inset:0;
+  background:radial-gradient(ellipse 60% 50% at 50% 0%,rgba(79,142,247,.12) 0%,transparent 70%);
+  pointer-events:none;
+}
+#auth-screen.hidden{opacity:0;pointer-events:none}
+.auth-card{
+  position:relative;
+  background:rgba(24,28,39,.97);
+  border:1px solid rgba(79,142,247,.2);
+  border-radius:20px;
+  padding:44px 40px 36px;
+  width:100%;max-width:400px;
+  box-shadow:0 32px 80px rgba(0,0,0,.6),0 0 0 1px rgba(255,255,255,.04) inset;
+}
+.auth-brand{display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:32px}
+.auth-brand-icon{
+  width:44px;height:44px;border-radius:12px;
+  background:linear-gradient(135deg,#4f8ef7,#2563eb);
+  display:flex;align-items:center;justify-content:center;
+  font-size:22px;box-shadow:0 4px 16px rgba(79,142,247,.35);
+}
+.auth-brand-name{font-family:'Inter',sans-serif;font-size:18px;font-weight:700;color:#e8eaf0;letter-spacing:-.02em}
+.auth-brand-name span{color:#4f8ef7;margin:0 3px}
+.auth-title{font-family:'Inter',sans-serif;font-size:22px;font-weight:700;color:#e8eaf0;text-align:center;margin-bottom:6px;letter-spacing:-.02em}
+.auth-sub{font-size:13.5px;color:#7a85a3;text-align:center;margin-bottom:32px;line-height:1.5}
+.auth-field{margin-bottom:16px}
+.auth-label{font-size:11px;font-weight:600;color:#5a6480;margin-bottom:6px;display:block;letter-spacing:.06em;text-transform:uppercase}
+.auth-input{
+  width:100%;padding:12px 14px;
+  background:rgba(255,255,255,.05);
+  border:1.5px solid rgba(255,255,255,.1);
+  border-radius:10px;color:#e8eaf0;
+  font-family:'Inter',sans-serif;font-size:14.5px;
+  outline:none;transition:border-color .2s,background .2s;box-sizing:border-box;
+}
+.auth-input::placeholder{color:#2a3450}
+.auth-input:focus{border-color:#4f8ef7;background:rgba(79,142,247,.07)}
+.auth-btn{
+  width:100%;padding:13px;
+  background:linear-gradient(135deg,#4f8ef7,#2563eb);
+  color:#fff;border:none;border-radius:10px;
+  font-family:'Inter',sans-serif;font-size:15px;font-weight:600;
+  cursor:pointer;margin-top:8px;
+  transition:opacity .15s,transform .15s,box-shadow .15s;
+  box-shadow:0 4px 16px rgba(79,142,247,.3);
+}
+.auth-btn:hover{opacity:.92;transform:translateY(-1px);box-shadow:0 6px 20px rgba(79,142,247,.4)}
+.auth-btn:active{transform:translateY(0)}
+.auth-btn:disabled{opacity:.45;cursor:default;transform:none;box-shadow:none}
+.auth-error{font-size:12.5px;color:#f75f5f;margin-top:10px;text-align:center;min-height:18px;line-height:1.4}
+.auth-divider{border:none;border-top:1px solid rgba(255,255,255,.07);margin:22px 0 0}
+.auth-toggle{font-size:12.5px;color:#7a85a3;text-align:center;margin-top:18px}
+.auth-toggle a{color:#4f8ef7;cursor:pointer;text-decoration:none;font-weight:600;border-bottom:1px solid rgba(79,142,247,.3);padding-bottom:1px}
+.auth-toggle a:hover{border-color:#4f8ef7}
+/* ── USER CHIP ── */
+.user-chip{display:flex;align-items:center;gap:7px;padding:5px 10px 5px 6px;background:var(--surface2);border:1px solid var(--border-light);border-radius:99px;cursor:default;font-size:12px;font-weight:500;color:var(--text-muted);transition:border-color .2s}
+.user-chip:hover{border-color:var(--accent)}
+.user-avatar{width:22px;height:22px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;flex-shrink:0}
+.user-email{max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.btn-logout{background:none;border:none;cursor:pointer;font-size:13px;padding:2px 4px;color:var(--text-dim);border-radius:4px;transition:color .15s,background .15s;line-height:1}
+.btn-logout:hover{color:var(--red);background:var(--red-dim)}
+@media(max-width:700px){.user-email{display:none}}
 </style>
 </head>
 <body>
@@ -316,16 +388,24 @@ body.privacy .badge{filter:none!important} /* percentages always visible */
 <!-- AUTH SCREEN -->
 <div id="auth-screen">
   <div class="auth-card">
-    <div class="auth-logo">💵</div>
-    <div class="auth-title">Patrimonio Personal</div>
-    <div class="auth-sub">Accede a tu tracker financiero</div>
-    <label class="auth-label">Email</label>
-    <input class="auth-input" id="auth-email" type="email" placeholder="tu@email.com" autocomplete="email">
-    <label class="auth-label">Contraseña</label>
-    <input class="auth-input" id="auth-password" type="password" placeholder="••••••••" autocomplete="current-password"
-      onkeydown="if(event.key==='Enter')doAuth()">
-    <button class="auth-btn" id="auth-btn" onclick="doAuth()">Entrar</button>
+    <div class="auth-brand">
+      <div class="auth-brand-icon">💵</div>
+      <div class="auth-brand-name">Patrimonio<span>·</span>Personal</div>
+    </div>
+    <div class="auth-title">Bienvenido de nuevo</div>
+    <div class="auth-sub">Accede para ver tu tracker financiero</div>
+    <div class="auth-field">
+      <label class="auth-label">Email</label>
+      <input class="auth-input" id="auth-email" type="email" placeholder="tu@email.com" autocomplete="email">
+    </div>
+    <div class="auth-field">
+      <label class="auth-label">Contraseña</label>
+      <input class="auth-input" id="auth-password" type="password" placeholder="••••••••" autocomplete="current-password"
+        onkeydown="if(event.key==='Enter')doAuth()">
+    </div>
+    <button class="auth-btn" id="auth-btn" onclick="doAuth()">Entrar →</button>
     <div class="auth-error" id="auth-error"></div>
+    <hr class="auth-divider">
     <div class="auth-toggle" id="auth-toggle">
       ¿Primera vez? <a onclick="toggleAuthMode()">Crear cuenta</a>
     </div>

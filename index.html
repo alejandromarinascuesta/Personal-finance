@@ -3,7 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Patrimonio · Tracker Financiero</title>
+<title>💵 Patrimonio</title>
+<meta property="og:title" content="💵 Patrimonio · Tracker Financiero">
+<meta property="og:description" content="Seguimiento mensual de finanzas personales e inversiones">
+<meta name="theme-color" content="#181c27">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💵</text></svg>">
+<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💵</text></svg>">
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 
@@ -119,12 +124,16 @@ canvas{display:block;max-width:100%}
 table{width:100%;border-collapse:collapse;font-size:12px}
 table.fixed{table-layout:fixed}
 thead th{text-align:left;padding:8px 10px;font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--text-dim);border-bottom:1px solid var(--border);white-space:nowrap}
+thead th.right,td.right{text-align:right}
 tbody tr{border-bottom:1px solid var(--border);transition:background .1s}
 tbody tr:hover{background:rgba(79,142,247,.04)}
 tbody tr:last-child{border-bottom:none}
-td{padding:9px 10px;color:var(--text);font-family:var(--mono);font-size:11.5px;white-space:nowrap}
+td{padding:9px 10px;color:var(--text);font-family:var(--mono);font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 td.label-cell{font-family:var(--sans);font-size:12px}
-td.right{text-align:right}
+/* hide-mobile hides both col and cell together */
+@media(max-width:768px){
+  .col-hide-mobile,.hide-mobile{display:none!important}
+}
 
 /* ── FORMS ── */
 .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
@@ -375,20 +384,24 @@ body.privacy .badge{filter:none!important} /* percentages always visible */
       </div>
       <div class="card"><div class="card-header"><div class="card-title">Últimos 6 meses</div></div>
         <div class="table-wrap sensitive">
-          <table class="fixed" style="min-width:580px">
+          <table class="fixed" style="min-width:560px">
             <colgroup>
-              <col style="width:100px"><col style="width:90px"><col style="width:105px">
-              <col style="width:90px"><col style="width:100px"><col style="width:115px">
-              <col style="width:80px">
+              <col style="width:110px">
+              <col style="width:88px">
+              <col style="width:108px">
+              <col style="width:95px">
+              <col style="width:105px">
+              <col style="width:118px">
+              <col style="width:82px">
             </colgroup>
             <thead><tr>
               <th>Mes</th>
               <th class="right">Ahorro</th>
-              <th class="right hide-mobile">Saldo</th>
+              <th class="right">Saldo</th>
               <th class="right">Cartera</th>
-              <th class="right hide-mobile">Líquido</th>
+              <th class="right">Líquido</th>
               <th class="right">Patrimonio</th>
-              <th class="right hide-mobile">Rent. real</th>
+              <th class="right">Rent. real</th>
             </tr></thead>
             <tbody id="table-recent"></tbody>
           </table>
@@ -417,11 +430,17 @@ body.privacy .badge{filter:none!important} /* percentages always visible */
       <div class="card">
         <div class="card-header"><div class="card-title">Todos los registros</div><div style="font-size:12px;color:var(--text-muted)" id="historial-count"></div></div>
         <div class="table-wrap sensitive">
-          <table class="fixed" style="min-width:720px">
+          <table class="fixed" style="min-width:740px">
             <colgroup>
-              <col style="width:90px"><col style="width:95px"><col style="width:105px">
-              <col style="width:95px"><col style="width:100px"><col style="width:95px">
-              <col style="width:110px"><col style="width:80px"><col style="width:80px">
+              <col style="width:88px">
+              <col style="width:82px">
+              <col style="width:96px">
+              <col style="width:86px">
+              <col style="width:96px">
+              <col style="width:84px">
+              <col style="width:106px">
+              <col style="width:72px">
+              <col style="width:80px">
             </colgroup>
             <thead><tr>
               <th>Mes</th>
@@ -905,14 +924,15 @@ function renderDashboard(){
     const idx=sm.indexOf(m);const change=idx>0?p-patrimonio(sm[idx-1]):null;
     const isBest=change===maxChange,isWorst=change===minChange&&change<0;
     const liq=(m.saldo_cuentas||0)+(m.valor_cartera||0);
+    const badge=isBest?'<span class="badge badge-green" style="margin-left:4px;font-size:9px">mejor</span>':isWorst?'<span class="badge badge-red" style="margin-left:4px;font-size:9px">peor</span>':'';
     return`<tr>
-      <td class="label-cell">${m.label}${isBest?'<span class="badge badge-green" style="margin-left:5px;font-size:9px">mejor</span>':isWorst?'<span class="badge badge-red" style="margin-left:5px;font-size:9px">peor</span>':''}</td>
+      <td class="label-cell">${m.label}${badge}</td>
       <td class="right ${numClass(m.ahorro_mes)}">${fmt(m.ahorro_mes)}</td>
-      <td class="right hide-mobile sensitive">${fmt(m.saldo_cuentas)}</td>
+      <td class="right sensitive">${fmt(m.saldo_cuentas)}</td>
       <td class="right sensitive">${fmt(m.valor_cartera)}</td>
-      <td class="right hide-mobile sensitive">${fmt(liq)}</td>
+      <td class="right sensitive">${fmt(liq)}</td>
       <td class="right sensitive" style="font-weight:600">${fmt(p)}</td>
-      <td class="right hide-mobile ${tw!==null?numClass(tw):''}">${tw!==null?fmtPct(tw):'—'}</td>
+      <td class="right ${tw!==null?numClass(tw):''}">${tw!==null?fmtPct(tw):'—'}</td>
     </tr>`;
   }).join('');
 }
@@ -1552,22 +1572,22 @@ function renderInvestments(){
   const byAsset=pnlByAsset();
   document.getElementById('pnl-by-asset').innerHTML=`
     <div class="table-wrap" style="margin-top:4px">
-      <table class="fixed" style="min-width:280px">
+      <table class="fixed" style="min-width:300px">
         <colgroup>
-          <col style="width:42%"><col style="width:20%"><col style="width:20%"><col style="width:18%">
+          <col style="width:44%"><col style="width:19%"><col style="width:19%"><col style="width:18%">
         </colgroup>
         <thead><tr>
-          <th>Activo</th>
+          <th style="padding-left:8px">Activo</th>
           <th class="right">Comprado</th>
           <th class="right">Vendido</th>
           <th class="right">Neto</th>
         </tr></thead>
         <tbody>
           ${byAsset.map(({asset,invested,sold,netCost})=>`<tr>
-            <td class="label-cell" style="overflow:hidden;text-overflow:ellipsis" title="${asset}">${asset}</td>
+            <td class="label-cell" style="padding-left:8px;overflow:hidden;text-overflow:ellipsis" title="${asset}">${asset}</td>
             <td class="right sensitive" style="color:var(--text-muted)">${fmt(invested)}</td>
             <td class="right sensitive" style="color:${sold>0?'var(--red)':'var(--text-dim)'}">${sold>0?fmt(sold):'—'}</td>
-            <td class="right sensitive" style="font-weight:600;color:${netCost>0?'var(--green)':netCost<0?'var(--red)':'var(--text-muted)'}">${netCost>=0?'+':''}${fmt(netCost)}</td>
+            <td class="right sensitive" style="font-weight:600;color:${netCost>0?'var(--green)':netCost<0?'var(--red)':'var(--text-muted)'}">${netCost>=0&&netCost!==0?'+':''}${fmt(netCost)}</td>
           </tr>`).join('')}
         </tbody>
       </table>

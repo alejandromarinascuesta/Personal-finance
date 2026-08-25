@@ -1884,18 +1884,29 @@ function pnlByAsset(){
   const map={};
   investments.forEach(i=>{
     if(i.type==='Dividendo') return; // dividendos van aparte
-    if(!map[i.asset]) map[i.asset]={compras:0,ventas:0,costBasis:0,pnlRealizado:0,hasPnl:false,broker:i.broker||'—'};
+    if(!map[i.asset]) map[i.asset]={compras:0,ventas:0,costBasis:0,qtyComprada:0,pnlRealizado:0,hasPnl:false,broker:i.broker||'—'};
     const d=map[i.asset];
     if(i.amount>0){ // compra
       d.compras += i.amount;
       d.costBasis += i.costBasis ?? i.amount;
+      d.qtyComprada += i.qty || 0;
     } else { // venta
       d.ventas += Math.abs(i.amount);
       if(i.pnl != null){ // tenemos Gan./pérd. oficial de Revolut
         d.pnlRealizado += i.pnl;
         d.hasPnl = true;
       } else { // estimación: proceeds - costBasis proporcional
-        const costeProp = d.costBasis * (Math.abs(i.amount) / (d.compras || Math.abs(i.amount)));
+        // La proporción del coste vendido debe calcularse por CANTIDAD (qty),
+        // no por importe (amount): usar el importe vendido / comprado como
+        // "fracción de la posición" solo funciona si el precio no ha cambiado,
+        // así que en cualquier venta con ganancia o pérdida da un resultado
+        // erróneo (p. ej. una venta con ganancia sale con Gan./pérd. ≈ 0).
+        // Si tenemos qty en la compra y en la venta, usamos el coste medio
+        // por unidad; si no hay datos de cantidad, mantenemos el fallback
+        // anterior (proporción por importe) para no romper los casos sin qty.
+        const costeProp = (i.qty != null && d.qtyComprada > 0)
+          ? (d.costBasis / d.qtyComprada) * i.qty
+          : d.costBasis * (Math.abs(i.amount) / (d.compras || Math.abs(i.amount)));
         d.pnlRealizado += Math.abs(i.amount) - costeProp;
       }
     }

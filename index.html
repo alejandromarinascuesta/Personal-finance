@@ -605,7 +605,7 @@ body.privacy .badge{filter:none!important} /* percentages always visible */
     <!-- INVERSIONES -->
     <section class="page" id="page-inversiones">
       <!-- PnL global -->
-      <div class="kpi-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:16px" id="pnl-kpis"></div>
+      <div class="kpi-grid-3" style="margin-bottom:16px" id="pnl-kpis"></div>
 
       <div class="inv-layout" style="display:grid;grid-template-columns:1fr 1.6fr;gap:22px">
         <div>
@@ -665,12 +665,10 @@ body.privacy .badge{filter:none!important} /* percentages always visible */
             <div class="table-wrap">
               <table class="fixed" style="min-width:480px">
                 <colgroup>
-                  <col style="width:88px"><col style="width:*"><col style="width:72px"><col style="width:72px"><col style="width:88px"><col style="width:58px"><col style="width:40px">
+                  <col style="width:88px"><col style="width:*"><col style="width:100px"><col style="width:76px"><col style="width:40px">
                 </colgroup>
                 <thead><tr>
                   <th>Fecha</th><th>Activo</th>
-                  <th class="right">Particip.</th>
-                  <th class="right">Precio</th>
                   <th class="right">Importe</th>
                   <th>Tipo</th><th></th>
                 </tr></thead>
@@ -1928,7 +1926,10 @@ function pnlByAsset(){
     compras:    d.compras,
     ventas:     d.ventas,
     costBasis:  d.costBasis,
-    enCartera:  Math.max(0, d.costBasis - d.ventas),
+    // (no se usa en pantalla hoy, pero por si acaso: coste real aún no
+    // liquidado, no "coste menos importe vendido" — esos dos no son la
+    // misma unidad cuando la venta tuvo ganancia o pérdida)
+    enCartera:  Math.max(0, d.costBasis - d.costBasisConsumido),
     pnlRealizado: d.ventas>0 ? d.pnlRealizado : null,
     pnlPct:     d.ventas>0 && d.costBasis>0 ? d.pnlRealizado/(d.costBasis*Math.min(1,d.ventas/d.compras)) : null,
     hasPnl:     d.hasPnl,
@@ -1993,8 +1994,24 @@ function renderInvestments(){
   const currentCartera=lastWithCartera?lastWithCartera.valor_cartera:null;
   const unrealizedPnL=currentCartera!==null?currentCartera-netInvested:null;
   const unrealizedPct=netInvested>0&&unrealizedPnL!==null?unrealizedPnL/netInvested:null;
-  // Official realized Gan./pérd. from Revolut data
-  const totalRealizedPnL = investments.filter(i=>i.pnl!=null).reduce((s,i)=>s+i.pnl,0);
+
+  // ── PnL por activo (se calcula antes de los KPIs: el total realizado de
+  // arriba debe salir de aquí, no de sumar solo los pnl oficiales) ──
+  const byAsset = pnlByAsset();
+  const hasSells = byAsset.some(a => a.ventas > 0);
+  // Total Gan./pérd. realizado global: incluye tanto las ventas con pnl
+  // oficial de Revolut como las estimadas (antes este total ignoraba las
+  // estimadas, así que una venta como WEXE —sin pnl oficial— salía en la
+  // tabla "por activo" pero no sumaba al total ni al KPI de arriba).
+  const totalRealizedPnL = byAsset.reduce((s,a) => s + (a.pnlRealizado ?? 0), 0);
+  const ventasConPnlOficial = investments.filter(i=>i.pnl!=null).length;
+  const ventasTotales = byAsset.reduce((s,a) => s + (a.ventas > 0 ? 1 : 0), 0);
+  const totalEnCartera    = byAsset.reduce((s,a) => s + a.enCartera, 0);
+
+  // Ganancia/pérdida total = lo ya vendido (realizada) + lo que aún tienes
+  // y ha subido o bajado de valor sobre el papel (no realizada). Solo el
+  // número, sin desglose debajo — a petición del usuario.
+  const combinedPnL = totalRealizedPnL + (unrealizedPnL||0);
 
   document.getElementById('pnl-kpis').innerHTML=`
     <div class="kpi-card blue">
@@ -2003,27 +2020,14 @@ function renderInvestments(){
       <div class="kpi-sub">Neto en cartera: <span class="sensitive">${fmt(netInvested)}</span></div>
     </div>
     <div class="kpi-card green">
-      <div class="kpi-label">Gan./pérd. realizada</div>
-      <div class="kpi-value sensitive ${numClass(totalRealizedPnL)}" style="font-size:20px">${totalRealizedPnL>=0?'+':''}${fmt(totalRealizedPnL,2)}</div>
-      <div class="kpi-sub">Fuente: Revolut FIFO · ${investments.filter(i=>i.pnl!=null).length} ventas</div>
-    </div>
-    <div class="kpi-card amber">
-      <div class="kpi-label">Gan./pérd. no realizada</div>
-      <div class="kpi-value sensitive ${unrealizedPnL!==null?numClass(unrealizedPnL):''}" style="font-size:20px">${unrealizedPnL!==null?(unrealizedPnL>=0?'+':'')+fmt(unrealizedPnL,2):'—'}</div>
-      <div class="kpi-sub">${unrealizedPct!==null?`<span class="${numClass(unrealizedPct)}">${unrealizedPct>=0?'+':''}${fmtPct(unrealizedPct)}</span> sobre coste neto`:'Añade valor cartera en Nuevo mes'}</div>
+      <div class="kpi-label">Ganancia/pérdida total</div>
+      <div class="kpi-value sensitive ${numClass(combinedPnL)}" style="font-size:20px">${combinedPnL>=0?'+':''}${fmt(combinedPnL,2)}</div>
     </div>
     <div class="kpi-card purple">
       <div class="kpi-label">Dividendos cobrados</div>
       <div class="kpi-value sensitive num-pos" style="font-size:20px">+${fmt(totalDivs,2)}</div>
       <div class="kpi-sub">${investments.filter(i=>i.type==='Dividendo').length} pagos · neto tras retención</div>
     </div>`;
-
-  // ── PnL por activo ──
-  const byAsset = pnlByAsset();
-  const hasSells = byAsset.some(a => a.ventas > 0);
-  // Total Gan./pérd. realizado global
-  const totalPnLRealizado = byAsset.reduce((s,a) => s + (a.pnlRealizado ?? 0), 0);
-  const totalEnCartera    = byAsset.reduce((s,a) => s + a.enCartera, 0);
 
   document.getElementById('pnl-by-asset').innerHTML = `
     <div class="table-wrap" style="margin-top:4px">
@@ -2081,7 +2085,7 @@ function renderInvestments(){
         </div>
         ${hasSells?`
         <div style="display:flex;justify-content:space-between;font-size:12.5px">
-          <span style="color:var(--text-muted)">Gan./pérd. realizada <span style="font-size:10px">(FIFO Revolut)</span></span>
+          <span style="color:var(--text-muted)">Gan./pérd. realizada <span style="font-size:10px">${ventasTotales>ventasConPnlOficial?'(FIFO Revolut + estimada)':'(FIFO Revolut)'}</span></span>
           <span class="sensitive" style="font-family:var(--mono);color:${totalRealizedPnL>=0?'var(--green)':'var(--red)'}">${totalRealizedPnL>=0?'+':''}${fmt(totalRealizedPnL,2)}</span>
         </div>`:''}
         <div style="display:flex;justify-content:space-between;font-size:12.5px">

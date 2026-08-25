@@ -1071,13 +1071,13 @@ function fmtPct(v){if(v===null||v===undefined||isNaN(v))return'—';return(v*100
 function numClass(v){return v>0?'num-pos':v<0?'num-neg':'num-neutral'}
 function sortedMonths(){return[...months].sort((a,b)=>a.year!==b.year?a.year-b.year:a.month-b.month)}
 function patrimonio(m){return(m.saldo_cuentas||0)+(m.valor_cartera||0)+(m.valor_pp||0)}
-// totalInvertidoHasta: net cost basis = buys - sells (excluding dividends)
+// totalInvertidoHasta: coste de lo que sigues teniendo sin vender.
+// Delega en el motor único (ver assetStateAt) para que Dashboard e
+// Inversiones no puedan dar cifras distintas. Antes hacía
+// compras - importe_cobrado_en_ventas, que mezcla coste con precio de
+// venta e infla la ganancia de cartera cuando alguna venta dio beneficio.
 function totalInvertidoHasta(year,month){
-  const cut=`${year}-${String(month).padStart(2,'0')}-31`;
-  const ops=investments.filter(i=>i.date<=cut&&i.type!=='Dividendo');
-  const buys=ops.filter(i=>i.amount>0).reduce((s,i)=>s+i.amount,0);
-  const sells=ops.filter(i=>i.amount<0).reduce((s,i)=>s+Math.abs(i.amount),0);
-  return buys-sells;
+  return costeEnCarteraHasta(year,month);
 }
 function totalPPHasta(year,month){return ppAport.filter(p=>p.year<year||(p.year===year&&p.month<=month)).reduce((s,p)=>s+(p.amount||0),0)}
 function rentabilidad(m){const inv=totalInvertidoHasta(m.year,m.month);if(!inv||inv===0||m.valor_cartera===null||m.valor_cartera===undefined)return null;return(m.valor_cartera-inv)/inv}
@@ -1092,19 +1092,35 @@ function calcTWRR(upToYear,upToMonth){
     const prev=sm[i-1];
     const prevD=`${prev.year}-${String(prev.month).padStart(2,'0')}-31`;
     const curD=`${m.year}-${String(m.month).padStart(2,'0')}-31`;
-    const flows=investments.filter(i=>i.date>prevD&&i.date<=curD).reduce((s,i)=>s+i.amount,0);
+    // Flujos = dinero que TÚ metes o sacas de la cartera (compras y ventas).
+    // Los dividendos NO son una aportación tuya: son rendimiento que genera
+    // la propia cartera, así que contarlos como flujo hacía que el TWRR
+    // creyera que habías aportado más dinero y rebajaba la rentabilidad.
+    const flows=investments
+      .filter(op=>op.type!=='Dividendo'&&op.date>prevD&&op.date<=curD)
+      .reduce((s,op)=>s+op.amount,0);
     const denom=(prev.valor_cartera||0)+0.5*flows;
-    if(denom===0)continue;
+    if(denom<=0)continue;
     prod*=(1+(m.valor_cartera-(prev.valor_cartera||0)-flows)/denom);
   }
   return prod-1;
 }
 
-// Assets breakdown from investment log
+// Reparto de cartera por activo, medido en COSTE de lo que aún tienes.
+// Antes sumaba i.amount en bruto, lo que restaba el importe cobrado en las
+// ventas (precio) del coste de las compras — dos unidades distintas — y
+// dejaba los activos vendidos parcialmente con un peso demasiado bajo.
 function assetBreakdown(){
-  const map={};
-  investments.forEach(i=>{map[i.asset]=(map[i.asset]||0)+i.amount});
-  return Object.entries(map).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]);
+  const map=assetStateAt();
+  return Object.entries(map)
+    .map(([asset,d])=>[asset, Math.max(0, d.costBasis - d.costBasisConsumido)])
+    // Umbral de 1€: cuando una venta trae el coste oficial de Revolut y no
+    // cuadra al céntimo con el de la compra (comisiones, redondeos del
+    // extracto), queda un resto de céntimos en una posición ya cerrada.
+    // Sin este filtro, un activo vendido del todo seguiría apareciendo en
+    // el reparto de cartera con 0,13 € — información engañosa.
+    .filter(([,v])=>v>=1)
+    .sort((a,b)=>b[1]-a[1]);
 }
 
 // ═══════════════════════════════════════════════
@@ -1217,7 +1233,7 @@ function renderDashboard(){
   // KPI — Cartera inversiones, sin TWRR en dashboard
   document.getElementById('kpi-cartera').textContent=fmt(last.valor_cartera);
   document.getElementById('kpi-cartera-sub').innerHTML=gananciaCartera!==null
-    ?`Invertido ${fmt(totalInv)} · <span class="${numClass(gananciaCartera)}">${gananciaCartera>=0?'+':''}${fmt(gananciaCartera)}</span>`
+    ?`Coste ${fmt(totalInv)} · <span class="${numClass(gananciaCartera)}">${gananciaCartera>=0?'+':''}${fmt(gananciaCartera)}</span> sin vender`
     :'Actualiza el valor de cartera';
 
   // Extra KPIs — solo gamificación sencilla. IF queda en su propia página.
@@ -1340,7 +1356,7 @@ function renderAnalisis(){
     <div class="insight-card">
       <div class="insight-title">Ganancia / pérdida cartera</div>
       <div class="insight-val sensitive ${gananciaCartera!==null?numClass(gananciaCartera):''}">${gananciaCartera!==null?(gananciaCartera>=0?'+':'')+fmt(gananciaCartera):'—'}</div>
-      <div class="insight-sub sensitive">${fmt(last.valor_cartera)} en cartera vs ${fmt(totalInv)} invertido</div>
+      <div class="insight-sub sensitive">${fmt(last.valor_cartera)} en cartera vs ${fmt(totalInv)} de coste · sin vender</div>
     </div>
     <div class="insight-card">
       <div class="insight-title">Rentabilidad PP</div>
@@ -1538,7 +1554,8 @@ function renderProjection(sm,last){
       const prev=sm2[i-1],cur=sm2[i];
       const pD=`${prev.year}-${String(prev.month).padStart(2,'0')}-31`;
       const cD=`${cur.year}-${String(cur.month).padStart(2,'0')}-31`;
-      const flows=investments.filter(inv=>inv.date>pD&&inv.date<=cD).reduce((s,i)=>s+i.amount,0);
+      // Mismo criterio que calcTWRR: los dividendos no son aportación tuya.
+      const flows=investments.filter(inv=>inv.type!=='Dividendo'&&inv.date>pD&&inv.date<=cD).reduce((s,inv)=>s+inv.amount,0);
       const denom=(prev.valor_cartera||0)+0.5*flows;
       if(denom>0)rets.push((cur.valor_cartera-(prev.valor_cartera||0)-flows)/denom);
     }
@@ -1872,16 +1889,30 @@ function clearForm(){['form-ahorro-mes','form-valor-cartera','form-aport-pp','fo
 // ═══════════════════════════════════════════════
 // INVERSIONES — PnL helpers
 // ═══════════════════════════════════════════════
-function pnlByAsset(){
-  /*
-    Usa costBasis oficial de Revolut cuando disponible.
-    Gan./pérd. realizado = suma de pnl en ventas (campo pnl del extracto oficial).
-    Si no hay campo pnl, calcula: ingresoVenta - costeBasis.
-    Dividendos se contabilizan aparte, no como coste de inversión.
-  */
+/*
+  ── MOTOR ÚNICO DE COSTE Y GANANCIA ──────────────────────────────────────
+  Todas las pantallas (Dashboard, Inversiones, tabla de meses, CSV) deben
+  salir de aquí. Antes cada sitio hacía su propia cuenta y no coincidían:
+  el Dashboard calculaba "invertido" como compras - importe_cobrado_en_ventas,
+  que resta el PRECIO DE VENTA en vez del COSTE, así que en cuanto una venta
+  daba ganancia el "invertido" quedaba por debajo de lo real y la ganancia
+  de cartera salía inflada (contaba dos veces lo ya realizado).
+
+  Conceptos, cada uno en su unidad:
+    · costBasis          — lo que te costó comprar (precio de compra)
+    · costBasisConsumido — cuánto de ese coste ya has liquidado al vender
+    · enCartera          — coste de lo que aún NO has vendido
+    · pnlRealizado       — beneficio ya materializado en ventas
+  Nunca se mezclan importes de venta con importes de coste.
+*/
+function assetStateAt(cutDate){
   const map={};
-  investments.forEach(i=>{
+  // En orden de fecha: para consumir coste al vender hay que haber
+  // procesado antes las compras que lo generaron.
+  const ordered=[...investments].sort((a,b)=>String(a.date).localeCompare(String(b.date)));
+  ordered.forEach(i=>{
     if(i.type==='Dividendo') return; // dividendos van aparte
+    if(cutDate && String(i.date) > cutDate) return;
     if(!map[i.asset]) map[i.asset]={compras:0,ventas:0,costBasis:0,qtyComprada:0,costBasisConsumido:0,pnlRealizado:0,hasPnl:false,broker:i.broker||'—'};
     const d=map[i.asset];
     if(i.amount>0){ // compra
@@ -1921,20 +1952,40 @@ function pnlByAsset(){
       }
     }
   });
+  return map;
+}
+
+function pnlByAsset(cutDate){
+  const map = assetStateAt(cutDate);
   return Object.entries(map).map(([asset,d])=>({
     asset,
     compras:    d.compras,
     ventas:     d.ventas,
     costBasis:  d.costBasis,
-    // (no se usa en pantalla hoy, pero por si acaso: coste real aún no
-    // liquidado, no "coste menos importe vendido" — esos dos no son la
-    // misma unidad cuando la venta tuvo ganancia o pérdida)
+    // Coste real aún no liquidado — NO "coste menos importe vendido":
+    // esos dos no están en la misma unidad si la venta tuvo ganancia.
     enCartera:  Math.max(0, d.costBasis - d.costBasisConsumido),
     pnlRealizado: d.ventas>0 ? d.pnlRealizado : null,
-    pnlPct:     d.ventas>0 && d.costBasis>0 ? d.pnlRealizado/(d.costBasis*Math.min(1,d.ventas/d.compras)) : null,
+    // El % se mide sobre el coste que esa venta liquidó, no sobre una
+    // proporción de importes (que se desvía en cuanto hay ganancia).
+    pnlPct:     d.ventas>0 && d.costBasisConsumido>0 ? d.pnlRealizado/d.costBasisConsumido : null,
     hasPnl:     d.hasPnl,
     broker:     d.broker,
   })).sort((a,b) => b.compras - a.compras);
+}
+
+/** Coste de lo que sigues teniendo sin vender a una fecha dada. */
+function costeEnCarteraHasta(year,month){
+  const cut=`${year}-${String(month).padStart(2,'0')}-31`;
+  const map=assetStateAt(cut);
+  return Object.values(map).reduce((s,d)=>s+Math.max(0,d.costBasis-d.costBasisConsumido),0);
+}
+
+/** Ganancia ya materializada en ventas hasta una fecha dada. */
+function realizadoHasta(year,month){
+  const cut=`${year}-${String(month).padStart(2,'0')}-31`;
+  const map=assetStateAt(cut);
+  return Object.values(map).reduce((s,d)=>s+(d.ventas>0?d.pnlRealizado:0),0);
 }
 
 function dividendosTotales(){
@@ -1986,17 +2037,13 @@ function renderInvestments(){
   // ── Global PnL (exclude dividends from invested amounts) ──
   const ops = investments.filter(i=>i.type!=='Dividendo');
   const totalBuys  = ops.filter(i=>i.amount>0).reduce((s,i)=>s+i.amount,0);
-  const totalSells = ops.filter(i=>i.amount<0).reduce((s,i)=>s+Math.abs(i.amount),0);
-  const netInvested = totalBuys - totalSells;
   const totalDivs   = dividendosTotales();
   const sm=sortedMonths();
   const lastWithCartera=[...sm].reverse().find(m=>m.valor_cartera!==null&&m.valor_cartera!==undefined);
   const currentCartera=lastWithCartera?lastWithCartera.valor_cartera:null;
-  const unrealizedPnL=currentCartera!==null?currentCartera-netInvested:null;
-  const unrealizedPct=netInvested>0&&unrealizedPnL!==null?unrealizedPnL/netInvested:null;
 
-  // ── PnL por activo (se calcula antes de los KPIs: el total realizado de
-  // arriba debe salir de aquí, no de sumar solo los pnl oficiales) ──
+  // ── PnL por activo (se calcula antes que nada: el coste aún invertido y
+  // el total realizado de arriba deben salir de aquí) ──
   const byAsset = pnlByAsset();
   const hasSells = byAsset.some(a => a.ventas > 0);
   // Total Gan./pérd. realizado global: incluye tanto las ventas con pnl
@@ -2006,7 +2053,17 @@ function renderInvestments(){
   const totalRealizedPnL = byAsset.reduce((s,a) => s + (a.pnlRealizado ?? 0), 0);
   const ventasConPnlOficial = investments.filter(i=>i.pnl!=null).length;
   const ventasTotales = byAsset.reduce((s,a) => s + (a.ventas > 0 ? 1 : 0), 0);
-  const totalEnCartera    = byAsset.reduce((s,a) => s + a.enCartera, 0);
+  // Coste de lo que sigues teniendo (sin vender). OJO: esto NO es
+  // "totalBuys - totalSells", que era el cálculo anterior — eso resta el
+  // IMPORTE COBRADO en cada venta (precio de venta) del total comprado, en
+  // vez de restar solo su COSTE. Como toda venta con ganancia cobra más de
+  // lo que costó, ese cálculo antiguo descontaba de más, y la diferencia
+  // (justo el total ya realizado) se colaba también dentro de la ganancia
+  // "no realizada" — la duplicaba. Por eso "no realizada" salía en 500€
+  // cuando la ganancia real de lo que aún tienes es bastante menor.
+  const costeEnCartera = byAsset.reduce((s,a) => s + a.enCartera, 0);
+  const unrealizedPnL=currentCartera!==null?currentCartera-costeEnCartera:null;
+  const unrealizedPct=costeEnCartera>0&&unrealizedPnL!==null?unrealizedPnL/costeEnCartera:null;
 
   // Ganancia/pérdida total = lo ya vendido (realizada) + lo que aún tienes
   // y ha subido o bajado de valor sobre el papel (no realizada). Solo el
@@ -2017,7 +2074,7 @@ function renderInvestments(){
     <div class="kpi-card blue">
       <div class="kpi-label">Total comprado</div>
       <div class="kpi-value sensitive" style="font-size:20px">${fmt(totalBuys)}</div>
-      <div class="kpi-sub">Neto en cartera: <span class="sensitive">${fmt(netInvested)}</span></div>
+      <div class="kpi-sub">Coste en cartera: <span class="sensitive">${fmt(costeEnCartera)}</span></div>
     </div>
     <div class="kpi-card green">
       <div class="kpi-label">Ganancia/pérdida total</div>
@@ -2076,8 +2133,8 @@ function renderInvestments(){
       <div style="font-size:10px;font-weight:600;color:var(--text-dim);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">Ganancia/pérdida total</div>
       <div style="display:grid;gap:8px">
         <div style="display:flex;justify-content:space-between;font-size:12.5px">
-          <span style="color:var(--text-muted)">Dinero invertido neto</span>
-          <span class="sensitive" style="font-family:var(--mono)">${fmt(netInvested)}</span>
+          <span style="color:var(--text-muted)">Coste en cartera (lo que aún no has vendido)</span>
+          <span class="sensitive" style="font-family:var(--mono)">${fmt(costeEnCartera)}</span>
         </div>
         <div style="display:flex;justify-content:space-between;font-size:12.5px">
           <span style="color:var(--text-muted)">Valor cartera actual</span>
@@ -2097,7 +2154,7 @@ function renderInvestments(){
           <span style="color:var(--text)">Gan./pérd. no realizada</span>
           <span class="sensitive" style="font-family:var(--mono);color:${unrealizedPnL!==null?(unrealizedPnL>=0?'var(--green)':'var(--red)'):'var(--text-muted)'}">${unrealizedPnL!==null?(unrealizedPnL>=0?'+':'')+fmt(unrealizedPnL,2):'Añade valor cartera'}</span>
         </div>
-        ${unrealizedPct!==null?`<div style="text-align:right;font-size:11px;color:${unrealizedPct>=0?'var(--green)':'var(--red)'}">${unrealizedPct>=0?'+':''}${fmtPct(unrealizedPct)} sobre coste neto</div>`:''}
+        ${unrealizedPct!==null?`<div style="text-align:right;font-size:11px;color:${unrealizedPct>=0?'var(--green)':'var(--red)'}">${unrealizedPct>=0?'+':''}${fmtPct(unrealizedPct)} sobre coste en cartera</div>`:''}
         <div style="display:flex;justify-content:space-between;font-size:12px;padding-top:4px;border-top:1px dashed var(--border)">
           <span style="color:var(--text-muted)">Ganancia total estimada</span>
           <span class="sensitive" style="font-family:var(--mono);font-weight:600;color:${((unrealizedPnL||0)+totalRealizedPnL+totalDivs)>=0?'var(--green)':'var(--red)'}">${((unrealizedPnL||0)+totalRealizedPnL+totalDivs)>=0?'+':''}${fmt((unrealizedPnL||0)+totalRealizedPnL+totalDivs,2)}</span>

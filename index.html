@@ -1884,7 +1884,7 @@ function pnlByAsset(){
   const map={};
   investments.forEach(i=>{
     if(i.type==='Dividendo') return; // dividendos van aparte
-    if(!map[i.asset]) map[i.asset]={compras:0,ventas:0,costBasis:0,qtyComprada:0,pnlRealizado:0,hasPnl:false,broker:i.broker||'—'};
+    if(!map[i.asset]) map[i.asset]={compras:0,ventas:0,costBasis:0,qtyComprada:0,costBasisConsumido:0,pnlRealizado:0,hasPnl:false,broker:i.broker||'—'};
     const d=map[i.asset];
     if(i.amount>0){ // compra
       d.compras += i.amount;
@@ -1895,19 +1895,31 @@ function pnlByAsset(){
       if(i.pnl != null){ // tenemos Gan./pérd. oficial de Revolut
         d.pnlRealizado += i.pnl;
         d.hasPnl = true;
-      } else { // estimación: proceeds - costBasis proporcional
-        // La proporción del coste vendido debe calcularse por CANTIDAD (qty),
-        // no por importe (amount): usar el importe vendido / comprado como
-        // "fracción de la posición" solo funciona si el precio no ha cambiado,
-        // así que en cualquier venta con ganancia o pérdida da un resultado
-        // erróneo (p. ej. una venta con ganancia sale con Gan./pérd. ≈ 0).
-        // Si tenemos qty en la compra y en la venta, usamos el coste medio
-        // por unidad; si no hay datos de cantidad, mantenemos el fallback
-        // anterior (proporción por importe) para no romper los casos sin qty.
+        d.costBasisConsumido += i.costBasis ?? 0;
+      } else { // sin pnl oficial: hay que estimar cuánto coste se ha "liquidado"
+        // OJO: el formulario de "Nueva operación" de la propia app no pide
+        // unidades (qty) ni coste, así que en la práctica casi ninguna venta
+        // real tiene esos datos — solo las filas sembradas a mano en el código
+        // los llevan. La fórmula anterior estimaba el coste proporcional como
+        // costBasis * (importeVendido / importeComprado), pero eso solo da un
+        // resultado correcto si el precio de venta es igual al de compra: en
+        // cuanto hay ganancia o pérdida (el caso que se quiere medir) el ratio
+        // se aleja de 1 y la ganancia calculada se acerca a 0 o se invierte
+        // (por eso WEXE —comprado a 100€, vendido a 106€— salía en -0€).
+        //
+        // Si tenemos qty tanto en compras como en esta venta, usamos coste
+        // medio por unidad (exacto). Si no —el caso habitual—, asumimos que
+        // la venta liquida el coste aún no consumido de esa posición: esto
+        // es correcto siempre que cada venta cierre lo que quedaba abierto
+        // (comprar una vez y vender todo después, que es como se usa hoy la
+        // app), y sigue siendo estrictamente mejor que la fórmula anterior
+        // para ventas parciales, donde antes el error podía ser aún mayor.
+        const costeRestante = Math.max(0, d.costBasis - d.costBasisConsumido);
         const costeProp = (i.qty != null && d.qtyComprada > 0)
           ? (d.costBasis / d.qtyComprada) * i.qty
-          : d.costBasis * (Math.abs(i.amount) / (d.compras || Math.abs(i.amount)));
+          : costeRestante;
         d.pnlRealizado += Math.abs(i.amount) - costeProp;
+        d.costBasisConsumido += costeProp;
       }
     }
   });

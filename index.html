@@ -712,7 +712,23 @@ body.privacy .badge{filter:none!important} /* percentages always visible */
         </div>
         <div class="section-title" style="margin-top:20px">💼 Ingresos</div>
         <div class="form-grid">
-          <div class="form-group"><label>Sueldo neto mensual (€)</label><input type="number" id="set-sueldo" placeholder="ej. 2500" oninput="saveSettings()"></div>
+          <div class="form-group">
+            <label>Neto por paga (€)</label>
+            <input type="number" id="set-neto-paga" placeholder="ej. 2500" step="0.01" oninput="saveSettings()">
+          </div>
+          <div class="form-group">
+            <label>Número de pagas al año</label>
+            <select id="set-num-pagas" onchange="saveSettings()">
+              <option value="12">12 pagas</option>
+              <option value="14">14 pagas</option>
+              <option value="15">15 pagas</option>
+            </select>
+          </div>
+          <div class="form-group full">
+            <label class="auto-label">Neto mensual prorrateado <span style="color:var(--green);font-size:10px">✦ a 12 meses</span></label>
+            <input type="number" id="set-sueldo" readonly class="auto-field" placeholder="—">
+            <span id="set-sueldo-hint" style="font-size:11px;color:var(--text-dim)"></span>
+          </div>
         </div>
         <div class="section-title" style="margin-top:20px">🎨 Apariencia</div>
         <div style="display:flex;gap:10px;margin-bottom:8px">
@@ -864,7 +880,7 @@ function normalizeState(raw){
   const investmentsData = state.investments || INITIAL_INVESTMENTS;
   const objectivesData = state.objectives || INITIAL_OBJECTIVES;
   const ppData = state.ppAport || INITIAL_PP;
-  const settingsData = state.settings || {gasto:2000,tasa:4,sueldo:null};
+  const settingsData = state.settings || {gasto:2000,tasa:4,sueldo:null,netoPaga:null,numPagas:12};
 
   // Migration: if code updated with new INITIAL months, merge them in
   const version = parseInt(state.version || '0');
@@ -920,7 +936,7 @@ function loadLocalData(){
     investments: storedInv || clone(INITIAL_INVESTMENTS),
     objectives: storedObj || clone(INITIAL_OBJECTIVES),
     ppAport: storedPP || clone(INITIAL_PP),
-    settings: storedSettings || {gasto:2000,tasa:4,sueldo:null}
+    settings: storedSettings || {gasto:2000,tasa:4,sueldo:null,netoPaga:null,numPagas:12}
   });
 
   persistLocalState(local);
@@ -1061,7 +1077,7 @@ let months = clone(INITIAL_MONTHS);
 let investments = clone(INITIAL_INVESTMENTS);
 let objectives = clone(INITIAL_OBJECTIVES);
 let ppAport = clone(INITIAL_PP);
-let settings = {gasto:2000,tasa:4,sueldo:null};
+let settings = {gasto:2000,tasa:4,sueldo:null,netoPaga:null,numPagas:12};
 
 // ═══════════════════════════════════════════════
 // HELPERS
@@ -1116,6 +1132,40 @@ function colchonMeses(){
   const gasto=settings.gasto;
   if(!last||!gasto||gasto<=0)return null;
   return (last.saldo_cuentas||0)/gasto;
+}
+
+/* Crecimiento del patrimonio mes a mes, en %.
+   Solo entre meses completos: si a un mes le falta el valor de cartera,
+   patrimonio() lo cuenta como 0 € y el porcentaje saldría desplomado.
+   La media es compuesta (no la media aritmética de los porcentajes), que
+   es como se mide de verdad un crecimiento acumulado. */
+function crecimientoPatrimonio(){
+  const completos=sortedMonths().filter(mesCompleto);
+  if(completos.length<2)return null;
+  const ult=completos[completos.length-1], ant=completos[completos.length-2];
+  const pAct=patrimonio(ult), pAnt=patrimonio(ant), pIni=patrimonio(completos[0]);
+  const ultimo = pAnt>0 ? (pAct-pAnt)/pAnt : null;
+  const periodos = completos.length-1;
+  const media = pIni>0&&pAct>0 ? Math.pow(pAct/pIni, 1/periodos)-1 : null;
+  return {ultimo, media, mesRef: ant.label, mesActual: ult.label, periodos};
+}
+
+/* Variación del ahorro respecto al mes anterior, en %.
+   Si el mes anterior ahorraste 0 o en negativo NO se calcula: un porcentaje
+   sobre una base negativa no significa nada (pasar de -600 € a +1.000 € no
+   es "un 266% más"), así que en ese caso se muestra la diferencia en euros. */
+function variacionAhorro(){
+  const conDato=sortedMonths().filter(m=>m.ahorro_mes!==null&&m.ahorro_mes!==undefined);
+  if(conDato.length<2)return null;
+  const ult=conDato[conDato.length-1], ant=conDato[conDato.length-2];
+  const a=ult.ahorro_mes||0, b=ant.ahorro_mes||0;
+  return {
+    pct: b>0 ? (a-b)/b : null,
+    diff: a-b,
+    actual: a,
+    anterior: b,
+    mesRef: ant.label,
+  };
 }
 
 /* Tasa de ahorro media de los últimos N meses. Se calcula sobre el total
@@ -1237,9 +1287,12 @@ function renderDashboard(){
 
   // KPIs principales — versión simplificada
   const pat=patrimonio(last);
-  const patPrev=prev?patrimonio(prev):null;
-  const diffPat=patPrev!==null?pat-patPrev:null;
-  const pctPat=patPrev&&patPrev>0?((pat-patPrev)/patPrev):null;
+  // Tanto la diferencia en € como el % se miden entre meses COMPLETOS: si al
+  // mes en curso le falta algún dato, compararlo mostraría una caída ficticia.
+  const completosDash=sm.filter(mesCompleto);
+  const patPrev=completosDash.length>=2?patrimonio(completosDash[completosDash.length-2]):null;
+  const patRef=completosDash.length?patrimonio(completosDash[completosDash.length-1]):null;
+  const diffPat=patPrev!==null&&patRef!==null?patRef-patPrev:null;
 
   // Saldo
   const saldoPrev=prev?prev.saldo_cuentas:null;
@@ -1258,8 +1311,11 @@ function renderDashboard(){
   } else {
     document.getElementById('kpi-patrimonio-badge').innerHTML='';
   }
-  document.getElementById('kpi-patrimonio-sub').innerHTML=pctPat!==null
-    ?`<span class="${numClass(pctPat)}">${pctPat>=0?'+':''}${fmtPct(pctPat)}</span> vs ${prev.label} · Incluye PP ${fmt(last.valor_pp)}`
+  // El % se toma del cálculo entre meses COMPLETOS: comparar contra un mes
+  // al que le falta un dato daría una caída que no ha ocurrido.
+  const crecPat=crecimientoPatrimonio();
+  document.getElementById('kpi-patrimonio-sub').innerHTML=crecPat&&crecPat.ultimo!==null
+    ?`<span class="${numClass(crecPat.ultimo)}">${crecPat.ultimo>=0?'+':''}${fmtPct(crecPat.ultimo)}</span> vs ${crecPat.mesRef} · Incluye PP ${fmt(last.valor_pp)}`
     :`Incluye PP ${fmt(last.valor_pp)}`;
 
   // KPI — Ahorro del mes
@@ -1288,6 +1344,7 @@ function renderDashboard(){
   // Extra KPIs — indicadores en positivo: miden lo que has construido.
   // IF queda en su propia página.
   const colchon=colchonMeses();
+  const varAhorro=variacionAhorro();
   const ahorroAnio=ahorroAcumuladoAnio(last.year);
   const mesesAnio=sm.filter(m=>m.year===last.year&&m.ahorro_mes!==null&&m.ahorro_mes!==undefined).length;
   document.getElementById('kpi-extra').innerHTML=`
@@ -1307,6 +1364,25 @@ function renderDashboard(){
       <div class="kpi-label">Ahorrado en ${last.year}</div>
       <div class="kpi-value sensitive ${numClass(ahorroAnio)}" style="font-size:22px">${ahorroAnio>=0?'+':''}${fmt(ahorroAnio)}</div>
       <div class="kpi-sub">${mesesAnio} ${mesesAnio===1?'mes registrado':'meses registrados'}${mesesAnio>0?` · ${fmt(ahorroAnio/mesesAnio)}/mes de media`:''}</div>
+    </div>
+    <div class="kpi-card" style="border-top:2px solid var(--green)">
+      <div class="kpi-label">Crecimiento patrimonio</div>
+      <div class="kpi-value ${crecPat&&crecPat.ultimo!==null?numClass(crecPat.ultimo):''}" style="font-size:22px">${
+        crecPat&&crecPat.ultimo!==null?(crecPat.ultimo>=0?'+':'')+fmtPct(crecPat.ultimo):'—'}</div>
+      <div class="kpi-sub">${crecPat&&crecPat.media!==null
+        ?`Este mes · media ${crecPat.media>=0?'+':''}${fmtPct(crecPat.media)}/mes en ${crecPat.periodos} meses`
+        :'Necesitas 2 meses completos'}</div>
+    </div>
+    <div class="kpi-card" style="border-top:2px solid var(--amber)">
+      <div class="kpi-label">Ahorro vs mes anterior</div>
+      <div class="kpi-value ${varAhorro?numClass(varAhorro.diff):''}" style="font-size:22px">${
+        !varAhorro?'—'
+        :varAhorro.pct!==null?(varAhorro.pct>=0?'+':'')+fmtPct(varAhorro.pct)
+        :(varAhorro.diff>=0?'+':'')+fmt(varAhorro.diff)}</div>
+      <div class="kpi-sub sensitive">${!varAhorro?'Necesitas 2 meses'
+        :varAhorro.pct!==null
+          ?`${(varAhorro.diff>=0?'+':'')+fmt(varAhorro.diff)} vs ${varAhorro.mesRef}`
+          :`vs ${varAhorro.mesRef} (${fmt(varAhorro.anterior)}) · sin % por base negativa`}</div>
     </div>
     <div class="kpi-card" style="border-top:2px solid var(--purple)">
       <div class="kpi-label">Plan de pensiones</div>
@@ -2453,12 +2529,42 @@ function deleteObjective(year){if(!confirm(`¿Eliminar objetivo ${year}?`))retur
 function initAjustes(){
   document.getElementById('set-gasto').value=settings.gasto||'';
   document.getElementById('set-tasa').value=settings.tasa||4;
-  document.getElementById('set-sueldo').value=settings.sueldo||'';
+  // Compatibilidad con datos antiguos: si solo existía "sueldo" (que ya era
+  // mensual), se interpreta como 12 pagas para no cambiarle las cifras a
+  // nadie que ya tuviera la app configurada.
+  const numPagas=settings.numPagas||12;
+  const netoPaga=settings.netoPaga ?? (settings.sueldo!=null?settings.sueldo:null);
+  document.getElementById('set-neto-paga').value=netoPaga??'';
+  document.getElementById('set-num-pagas').value=String(numPagas);
+  actualizarSueldoProrrateado();
 }
+
+/* Todo el resto de la app calcula en mensual, así que aquí se prorratea:
+   neto por paga × nº de pagas ÷ 12. Con 12 pagas el resultado es el mismo
+   número que introduces; con 14 o 15, reparte las extras entre los 12 meses. */
+function actualizarSueldoProrrateado(){
+  const netoPaga=parseFloat(document.getElementById('set-neto-paga').value);
+  const numPagas=parseInt(document.getElementById('set-num-pagas').value)||12;
+  const hint=document.getElementById('set-sueldo-hint');
+  if(isNaN(netoPaga)||netoPaga<=0){
+    document.getElementById('set-sueldo').value='';
+    hint.textContent='Introduce el neto de una paga para calcularlo.';
+    return null;
+  }
+  const mensual=netoPaga*numPagas/12;
+  document.getElementById('set-sueldo').value=mensual.toFixed(2);
+  hint.textContent=`${fmt(netoPaga,2)} × ${numPagas} pagas ÷ 12 = ${fmt(mensual,2)}/mes · bruto anual neto ${fmt(netoPaga*numPagas,2)}`;
+  return mensual;
+}
+
 function saveSettings(){
   settings.gasto=parseFloat(document.getElementById('set-gasto').value)||2000;
   settings.tasa=parseFloat(document.getElementById('set-tasa').value)||4;
-  settings.sueldo=parseFloat(document.getElementById('set-sueldo').value)||null;
+  settings.netoPaga=parseFloat(document.getElementById('set-neto-paga').value)||null;
+  settings.numPagas=parseInt(document.getElementById('set-num-pagas').value)||12;
+  // settings.sueldo sigue siendo SIEMPRE el mensual prorrateado: así todos
+  // los cálculos que ya existían (tasa de ahorro, etc.) siguen igual.
+  settings.sueldo=actualizarSueldoProrrateado();
   saveData();showToast('Ajustes guardados');
 }
 
@@ -2494,7 +2600,7 @@ function importData(){document.getElementById('import-file').click()}
 function handleImport(e){
   const file=e.target.files[0];if(!file)return;
   const reader=new FileReader();
-  reader.onload=ev=>{try{const data=JSON.parse(ev.target.result);if(!data.months||!data.investments||!data.objectives){alert('Archivo no válido');return}if(!confirm('¿Restaurar? Se sobreescriben todos los datos.'))return;months=data.months;investments=data.investments;objectives=data.objectives;ppAport=data.ppAport||INITIAL_PP;settings=data.settings||{gasto:2000,tasa:4,sueldo:null};saveData();showPage('dashboard');showToast('✓ Datos restaurados')}catch(err){alert('Error: '+err.message)}};
+  reader.onload=ev=>{try{const data=JSON.parse(ev.target.result);if(!data.months||!data.investments||!data.objectives){alert('Archivo no válido');return}if(!confirm('¿Restaurar? Se sobreescriben todos los datos.'))return;months=data.months;investments=data.investments;objectives=data.objectives;ppAport=data.ppAport||INITIAL_PP;settings=data.settings||{gasto:2000,tasa:4,sueldo:null,netoPaga:null,numPagas:12};saveData();showPage('dashboard');showToast('✓ Datos restaurados')}catch(err){alert('Error: '+err.message)}};
   reader.readAsText(file);e.target.value='';
 }
 

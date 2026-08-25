@@ -482,14 +482,14 @@ body.privacy .badge{filter:none!important} /* percentages always visible */
           <div class="kpi-sub" id="kpi-cartera-sub"></div>
         </div>
       </div>
-      <div class="kpi-grid-3" id="kpi-extra"></div>
+      <div class="kpi-grid" id="kpi-extra"></div>
       <div class="chart-grid">
         <div class="card"><div class="card-header"><div class="card-title">Evolución patrimonial</div><div id="chart-legend" style="display:flex;gap:14px;font-size:11px;color:var(--text-muted)"></div></div><div class="card-body sensitive" style="padding:10px 14px 14px"><canvas id="chart-main" height="210"></canvas></div></div>
         <div class="card"><div class="card-header"><div class="card-title">Objetivos año en curso</div></div><div class="card-body sensitive"><div id="progress-section"></div></div></div>
       </div>
       <div class="card"><div class="card-header"><div class="card-title">Últimos 6 meses</div></div>
         <div class="table-wrap sensitive">
-          <table class="fixed" style="min-width:560px">
+          <table class="fixed" style="min-width:650px">
             <colgroup>
               <col style="width:120px">
               <col style="width:95px">
@@ -533,12 +533,13 @@ body.privacy .badge{filter:none!important} /* percentages always visible */
       <div class="card">
         <div class="card-header"><div class="card-title">Todos los registros</div><div style="font-size:12px;color:var(--text-muted)" id="historial-count"></div></div>
         <div class="table-wrap sensitive">
-          <table class="fixed" style="min-width:740px">
+          <table class="fixed" style="min-width:886px">
             <colgroup>
               <col style="width:88px">
               <col style="width:82px">
               <col style="width:96px">
               <col style="width:86px">
+              <col style="width:96px">
               <col style="width:96px">
               <col style="width:84px">
               <col style="width:106px">
@@ -550,6 +551,7 @@ body.privacy .badge{filter:none!important} /* percentages always visible */
               <th class="right">Ahorro</th>
               <th class="right">Saldo</th>
               <th class="right">Cartera</th>
+              <th class="right" title="Compras menos ventas de ese mes">Invertido mes</th>
               <th class="right">Total inv.</th>
               <th class="right">Valor PP</th>
               <th class="right">Patrimonio</th>
@@ -1071,6 +1073,20 @@ function fmtPct(v){if(v===null||v===undefined||isNaN(v))return'—';return(v*100
 function numClass(v){return v>0?'num-pos':v<0?'num-neg':'num-neutral'}
 function sortedMonths(){return[...months].sort((a,b)=>a.year!==b.year?a.year-b.year:a.month-b.month)}
 function patrimonio(m){return(m.saldo_cuentas||0)+(m.valor_cartera||0)+(m.valor_pp||0)}
+/* Un mes solo es comparable si tiene sus tres componentes. Si falta uno,
+   patrimonio() lo cuenta como 0 € y el mes parece un desplome. */
+function mesCompleto(m){
+  return m.saldo_cuentas!==null&&m.saldo_cuentas!==undefined
+      && m.valor_cartera!==null&&m.valor_cartera!==undefined
+      && m.valor_pp!==null&&m.valor_pp!==undefined;
+}
+function camposQueFaltan(m){
+  const f=[];
+  if(m.saldo_cuentas===null||m.saldo_cuentas===undefined)f.push('saldo');
+  if(m.valor_cartera===null||m.valor_cartera===undefined)f.push('cartera');
+  if(m.valor_pp===null||m.valor_pp===undefined)f.push('plan de pensiones');
+  return f;
+}
 // totalInvertidoHasta: coste de lo que sigues teniendo sin vender.
 // Delega en el motor único (ver assetStateAt) para que Dashboard e
 // Inversiones no puedan dar cifras distintas. Antes hacía
@@ -1082,6 +1098,37 @@ function totalInvertidoHasta(year,month){
 function totalPPHasta(year,month){return ppAport.filter(p=>p.year<year||(p.year===year&&p.month<=month)).reduce((s,p)=>s+(p.amount||0),0)}
 function rentabilidad(m){const inv=totalInvertidoHasta(m.year,m.month);if(!inv||inv===0||m.valor_cartera===null||m.valor_cartera===undefined)return null;return(m.valor_cartera-inv)/inv}
 function ahorroAcumuladoAnio(year){return sortedMonths().filter(m=>m.year===year).reduce((s,m)=>s+(m.ahorro_mes||0),0)}
+
+/* Dinero que has metido (o sacado) de la cartera en un mes concreto:
+   compras menos ventas de ese mes. Positivo = has invertido; negativo =
+   has retirado. Los dividendos no cuentan: no son aportación tuya. */
+function aportadoEnMes(year,month){
+  const pre=`${year}-${String(month).padStart(2,'0')}`;
+  return investments
+    .filter(i=>i.type!=='Dividendo'&&String(i.date).startsWith(pre))
+    .reduce((s,i)=>s+i.amount,0);
+}
+
+/* Meses que podrías cubrir con el dinero líquido si dejaras de ingresar. */
+function colchonMeses(){
+  const sm=sortedMonths();
+  const last=[...sm].reverse().find(m=>m.saldo_cuentas!==null&&m.saldo_cuentas!==undefined);
+  const gasto=settings.gasto;
+  if(!last||!gasto||gasto<=0)return null;
+  return (last.saldo_cuentas||0)/gasto;
+}
+
+/* Tasa de ahorro media de los últimos N meses. Se calcula sobre el total
+   (suma ahorrada / suma ingresada), no promediando porcentajes, para que
+   un mes suelto no distorsione el resultado. */
+function tasaAhorroMedia(n=6){
+  const sueldo=settings.sueldo;
+  if(!sueldo||sueldo<=0)return null;
+  const ult=sortedMonths().filter(m=>m.ahorro_mes!==null&&m.ahorro_mes!==undefined).slice(-n);
+  if(!ult.length)return null;
+  const total=ult.reduce((s,m)=>s+(m.ahorro_mes||0),0);
+  return {tasa: total/(sueldo*ult.length), meses: ult.length};
+}
 
 function calcTWRR(upToYear,upToMonth){
   const sm=sortedMonths().filter(m=>m.valor_cartera!==null&&m.valor_cartera!==undefined);
@@ -1219,9 +1266,11 @@ function renderDashboard(){
   document.getElementById('kpi-ahorro').textContent=fmt(last.ahorro_mes);
   document.getElementById('kpi-ahorro').className=`kpi-value sensitive ${numClass(last.ahorro_mes)}`;
   const sueldo=settings.sueldo;
-  const tasaAhorro=sueldo&&sueldo>0&&last.ahorro_mes!==null&&last.ahorro_mes!==undefined?last.ahorro_mes/sueldo:null;
-  document.getElementById('kpi-ahorro-sub').innerHTML=tasaAhorro!==null
-    ?`Tasa de ahorro <span class="badge ${tasaAhorro>=0.2?'badge-green':tasaAhorro>=0.1?'badge-amber':'badge-red'}">${fmtPct(tasaAhorro)}</span>`
+  // Tasa de ahorro sobre la media de los últimos 6 meses: un mes suelto
+  // (una compra grande, una paga extra) no debe teñir el indicador.
+  const tam=tasaAhorroMedia(6);
+  document.getElementById('kpi-ahorro-sub').innerHTML=tam!==null
+    ?`Tasa de ahorro ${tam.meses}m <span class="badge ${tam.tasa>=0.2?'badge-green':tam.tasa>=0.1?'badge-amber':'badge-red'}">${fmtPct(tam.tasa)}</span>`
     :'Configura sueldo en Ajustes para ver la tasa';
 
   // KPI — Saldo cuentas
@@ -1236,12 +1285,28 @@ function renderDashboard(){
     ?`Coste ${fmt(totalInv)} · <span class="${numClass(gananciaCartera)}">${gananciaCartera>=0?'+':''}${fmt(gananciaCartera)}</span> sin vender`
     :'Actualiza el valor de cartera';
 
-  // Extra KPIs — solo gamificación sencilla. IF queda en su propia página.
+  // Extra KPIs — indicadores en positivo: miden lo que has construido.
+  // IF queda en su propia página.
+  const colchon=colchonMeses();
+  const ahorroAnio=ahorroAcumuladoAnio(last.year);
+  const mesesAnio=sm.filter(m=>m.year===last.year&&m.ahorro_mes!==null&&m.ahorro_mes!==undefined).length;
   document.getElementById('kpi-extra').innerHTML=`
+    <div class="kpi-card" style="border-top:2px solid var(--green)">
+      <div class="kpi-label">Colchón de emergencia</div>
+      <div class="kpi-value" style="font-size:22px">${colchon!==null?colchon.toFixed(1).replace('.',',')+' meses':'—'}</div>
+      <div class="kpi-sub">${colchon!==null
+        ?`Cubres tus gastos de ${fmt(settings.gasto)}/mes ${colchon>=6?'· <span class="badge badge-green">de sobra</span>':colchon>=3?'· <span class="badge badge-green">sólido</span>':'· <span class="badge badge-amber">a reforzar</span>'}`
+        :'Configura tu gasto mensual en Ajustes'}</div>
+    </div>
     <div class="kpi-card" style="border-top:2px solid var(--amber)">
       <div class="kpi-label">Racha ahorro positivo</div>
       <div class="kpi-value" style="font-size:22px" id="kpi-racha-val">—</div>
       <div class="kpi-sub" id="kpi-racha-sub"></div>
+    </div>
+    <div class="kpi-card" style="border-top:2px solid var(--accent)">
+      <div class="kpi-label">Ahorrado en ${last.year}</div>
+      <div class="kpi-value sensitive ${numClass(ahorroAnio)}" style="font-size:22px">${ahorroAnio>=0?'+':''}${fmt(ahorroAnio)}</div>
+      <div class="kpi-sub">${mesesAnio} ${mesesAnio===1?'mes registrado':'meses registrados'}${mesesAnio>0?` · ${fmt(ahorroAnio/mesesAnio)}/mes de media`:''}</div>
     </div>
     <div class="kpi-card" style="border-top:2px solid var(--purple)">
       <div class="kpi-label">Plan de pensiones</div>
@@ -1308,20 +1373,31 @@ function renderDashboard(){
   }
 
   const recent=sm.slice(-6).reverse();
-  const patChanges=sm.slice(1).map((m,i)=>patrimonio(m)-patrimonio(sm[i]));
+  // Un mes al que le falta algún componente (p. ej. aún no has apuntado el
+  // valor de cartera) NO puede compararse: patrimonio() cuenta lo que falta
+  // como 0 €, así que el patrimonio se hunde artificialmente y ese mes se
+  // llevaba la etiqueta de "peor" aunque hubieras ahorrado de sobra.
+  // Solo comparamos meses completos, y contra el mes completo anterior.
+  const completos=sm.filter(mesCompleto);
+  const patChanges=completos.slice(1).map((m,i)=>patrimonio(m)-patrimonio(completos[i]));
   const maxChange=patChanges.length?Math.max(...patChanges):null,minChange=patChanges.length?Math.min(...patChanges):null;
   document.getElementById('table-recent').innerHTML=recent.map(m=>{
     const p=patrimonio(m);
-    const idx=sm.indexOf(m);const change=idx>0?p-patrimonio(sm[idx-1]):null;
-    const isBest=maxChange!==null&&change===maxChange,isWorst=minChange!==null&&change===minChange&&change<0;
-    const badge=isBest?'<span class="badge badge-green" style="margin-left:4px;font-size:9px">mejor</span>':isWorst?'<span class="badge badge-red" style="margin-left:4px;font-size:9px">peor</span>':'';
+    const completo=mesCompleto(m);
+    const idxC=completos.indexOf(m);
+    const change=completo&&idxC>0?p-patrimonio(completos[idxC-1]):null;
+    const isBest=completo&&maxChange!==null&&change===maxChange;
+    const isWorst=completo&&minChange!==null&&change===minChange&&change<0;
+    const badge=isBest?'<span class="badge badge-green" style="margin-left:4px;font-size:9px">mejor</span>'
+      :isWorst?'<span class="badge badge-red" style="margin-left:4px;font-size:9px">peor</span>'
+      :!completo?`<span class="badge badge-amber" style="margin-left:4px;font-size:9px" title="Faltan datos: ${camposQueFaltan(m).join(', ')}">incompleto</span>`:'';
     return`<tr>
       <td class="label-cell">${m.label}${badge}</td>
       <td class="right ${numClass(m.ahorro_mes)}">${fmt(m.ahorro_mes)}</td>
       <td class="right sensitive">${fmt(m.saldo_cuentas)}</td>
       <td class="right sensitive">${fmt(m.valor_cartera)}</td>
       <td class="right sensitive">${fmt(m.valor_pp)}</td>
-      <td class="right sensitive" style="font-weight:600">${fmt(p)}</td>
+      <td class="right sensitive" style="font-weight:600${completo?'':';color:var(--text-dim)'}" ${completo?'':'title="Parcial: falta algún dato de este mes"'}>${fmt(p)}${completo?'':' *'}</td>
     </tr>`;
   }).join('');
 }
@@ -1341,7 +1417,11 @@ function renderAnalisis(){
   const totalPP=totalPPHasta(last.year,last.month);
   const pat=patrimonio(last),patFirst=patrimonio(first);
   const patGrowth=patFirst>0?(pat-patFirst)/patFirst:null;
-  const changes=sm.slice(1).map((m,i)=>({label:m.label,change:patrimonio(m)-patrimonio(sm[i])}));
+  // Igual que en el dashboard: comparar solo meses con todos los datos, o
+  // un mes a medio rellenar se lleva el "peor mes" sin merecerlo.
+  const completos=sm.filter(mesCompleto);
+  const changes=completos.slice(1).map((m,i)=>({label:m.label,change:patrimonio(m)-patrimonio(completos[i])}));
+  if(!changes.length)changes.push({label:'—',change:0});
   const best=changes.reduce((a,b)=>b.change>a.change?b:a);
   const worst=changes.reduce((a,b)=>b.change<a.change?b:a);
   const gananciaCartera=last.valor_cartera!==null?(last.valor_cartera||0)-totalInv:null;
@@ -1722,11 +1802,13 @@ function renderHistorial(){
   document.getElementById('historial-count').textContent=`${sm.length} registros`;
   document.getElementById('table-historial').innerHTML=[...sm].reverse().map(m=>{
     const p=patrimonio(m),r=rentabilidad(m),ti=totalInvertidoHasta(m.year,m.month);
+    const aport=aportadoEnMes(m.year,m.month);
     return`<tr>
       <td class="label-cell">${m.label}</td>
       <td class="right ${numClass(m.ahorro_mes)}">${fmt(m.ahorro_mes)}</td>
       <td class="right sensitive">${fmt(m.saldo_cuentas)}</td>
       <td class="right sensitive">${fmt(m.valor_cartera)}</td>
+      <td class="right sensitive ${aport!==0?numClass(aport):''}" title="${aport>0?'Invertido este mes':aport<0?'Retirado este mes':'Sin movimientos'}">${aport===0?'—':(aport>0?'+':'')+fmt(aport)}</td>
       <td class="right sensitive">${fmt(ti)}</td>
       <td class="right sensitive">${fmt(m.valor_pp)}</td>
       <td class="right sensitive" style="font-weight:600">${fmt(p)}</td>

@@ -146,6 +146,7 @@ input[readonly]{opacity:.6;cursor:default;background:rgba(30,35,54,.45)}
 [data-theme="light"] input[readonly]{background:rgba(240,242,248,.8)}
 select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%237a85a3' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:30px}
 select option{background:var(--surface2)}
+.chart-help{font-size:11.5px;line-height:1.45;color:var(--text-dim);margin:0 0 10px}
 .auto-field{border-color:rgba(48,217,136,.4)!important;background:rgba(48,217,136,.05)!important}
 .auto-label{color:var(--green)!important}
 .section-title{font-size:11px;font-weight:600;color:var(--text-dim);text-transform:uppercase;letter-spacing:.1em;margin:16px 0 10px;padding-bottom:7px;border-bottom:1px solid var(--border)}
@@ -461,6 +462,11 @@ body.privacy .badge{filter:none!important} /* percentages always visible */
       <!-- Racha banner -->
       <div id="racha-banner" style="display:none;margin-bottom:14px"></div>
       <div class="kpi-grid">
+        <div class="kpi-card amber">
+          <div class="kpi-label">Saldo cuentas</div>
+          <div class="kpi-value sensitive" id="kpi-saldo">—</div>
+          <div class="kpi-sub sensitive" id="kpi-saldo-sub"></div>
+        </div>
         <div class="kpi-card blue">
           <div class="kpi-label">Patrimonio total</div>
           <div class="kpi-value sensitive" id="kpi-patrimonio">—</div>
@@ -470,11 +476,6 @@ body.privacy .badge{filter:none!important} /* percentages always visible */
           <div class="kpi-label">Ahorro del mes</div>
           <div class="kpi-value sensitive" id="kpi-ahorro">—</div>
           <div class="kpi-sub" id="kpi-ahorro-sub"></div>
-        </div>
-        <div class="kpi-card amber">
-          <div class="kpi-label">Saldo cuentas</div>
-          <div class="kpi-value sensitive" id="kpi-saldo">—</div>
-          <div class="kpi-sub sensitive" id="kpi-saldo-sub"></div>
         </div>
         <div class="kpi-card purple">
           <div class="kpi-label">Cartera inversiones</div>
@@ -516,15 +517,15 @@ body.privacy .badge{filter:none!important} /* percentages always visible */
     <section class="page" id="page-analisis">
       <div class="insights-grid sensitive" id="insights-grid"></div>
       <div class="chart-grid sensitive" style="margin-bottom:18px">
-        <div class="card"><div class="card-header"><div class="card-title">Rentabilidad mes a mes (%)</div></div><div class="card-body" style="padding:10px 14px 14px"><canvas id="chart-rent" height="190"></canvas></div></div>
-        <div class="card"><div class="card-header"><div class="card-title">Composición por activo</div></div><div class="card-body" style="padding:10px 14px 14px"><canvas id="chart-activos" height="190"></canvas></div></div>
+        <div class="card"><div class="card-header"><div class="card-title">Rentabilidad acumulada de la cartera</div></div><div class="card-body" style="padding:4px 14px 14px"><p class="chart-help">Cuánto vale tu cartera comparada con lo que te costó, en cada momento. Verde = vale más de lo que pagaste.</p><canvas id="chart-rent" height="190"></canvas></div></div>
+        <div class="card"><div class="card-header"><div class="card-title">En qué tienes invertido</div></div><div class="card-body" style="padding:4px 14px 14px"><p class="chart-help">Reparto de tu cartera por producto, medido por lo que te costó cada uno.</p><canvas id="chart-activos" height="190"></canvas></div></div>
       </div>
       <div class="chart-grid sensitive" style="margin-bottom:18px">
-        <div class="card"><div class="card-header"><div class="card-title">Comparativa año a año</div></div><div class="card-body" style="padding:10px 14px 14px"><canvas id="chart-yoy" height="190"></canvas></div></div>
-        <div class="card"><div class="card-header"><div class="card-title">Composición patrimonio</div></div><div class="card-body" style="padding:10px 14px 14px"><canvas id="chart-donut" height="190"></canvas></div></div>
+        <div class="card"><div class="card-header"><div class="card-title">Comparativa año a año</div></div><div class="card-body" style="padding:4px 14px 14px"><p class="chart-help">Tu patrimonio mes a mes, una línea por año, para ver si este año vas mejor que el anterior.</p><canvas id="chart-yoy" height="190"></canvas></div></div>
+        <div class="card"><div class="card-header"><div class="card-title">Dónde está tu dinero</div></div><div class="card-body" style="padding:4px 14px 14px"><p class="chart-help">Cómo se reparte tu patrimonio entre cuentas, inversiones y plan de pensiones.</p><canvas id="chart-donut" height="190"></canvas></div></div>
       </div>
-      <div class="card sensitive" style="margin-bottom:16px"><div class="card-header"><div class="card-title">Distribución del crecimiento: tú vs mercado</div><span class="twrr-tag">mes a mes</span></div><div class="card-body" style="padding:10px 14px 14px"><canvas id="chart-growth" height="190"></canvas></div></div>
-      <div class="card sensitive"><div class="card-header"><div class="card-title">Proyección a fin de año</div><span class="twrr-tag">estimado</span></div><div class="card-body"><div id="projection-section"></div></div></div>
+      <div class="card sensitive" style="margin-bottom:16px"><div class="card-header"><div class="card-title">Qué hace crecer tu patrimonio</div><span class="twrr-tag">mes a mes</span></div><div class="card-body" style="padding:4px 14px 14px"><p class="chart-help">Cada mes, cuánto subió tu patrimonio por dinero que metiste tú (ahorro y aportaciones) y cuánto porque tus inversiones se revalorizaron.</p><canvas id="chart-growth" height="190"></canvas></div></div>
+      <div class="card sensitive"><div class="card-header"><div class="card-title">Proyección a fin de año</div><span class="twrr-tag">estimado</span></div><div class="card-body"><p class="chart-help">Dónde acabarías el año si siguieras al ritmo actual. Es una estimación, no una previsión fiable.</p><div id="projection-section"></div></div></div>
     </section>
 
     <!-- HISTORIAL -->
@@ -552,7 +553,7 @@ body.privacy .badge{filter:none!important} /* percentages always visible */
               <th class="right">Saldo</th>
               <th class="right">Cartera</th>
               <th class="right" title="Compras menos ventas de ese mes">Invertido mes</th>
-              <th class="right">Total inv.</th>
+              <th class="right" title="Lo que te costó lo que aún tienes sin vender, a final de ese mes">Invertido actual</th>
               <th class="right">Valor PP</th>
               <th class="right">Patrimonio</th>
               <th class="right">Rent.</th>
@@ -576,17 +577,14 @@ body.privacy .badge{filter:none!important} /* percentages always visible */
           </div>
           <div class="section-title">💰 Ahorro</div>
           <div class="form-grid">
-            <div class="form-group" style="display:none"><label>Sueldo neto mes (€) <span style="color:var(--text-dim);font-size:10px">↳ opcional</span></label><input type="number" id="form-sueldo" placeholder="ej. 2500" step="0.01" oninput="updatePreview()"></div>
-            <div class="form-group"><label>Ahorro del mes (€) <span style="color:var(--accent);font-size:10px">↳ tú lo introduces</span></label><input type="number" id="form-ahorro-mes" placeholder="ej. 1200" step="0.01" oninput="onAhorroChange()"></div>
+            <div class="form-group full"><label>Ahorro del mes (€) <span style="color:var(--accent);font-size:10px">↳ tú lo introduces</span></label><input type="number" id="form-ahorro-mes" placeholder="ej. 1200" step="0.01" oninput="onAhorroChange()"><span style="font-size:11px;color:var(--text-dim)">Lo que has metido este mes en tu cuenta remunerada. Lo que inviertes va aparte, en la página de Inversiones.</span></div>
             <div class="form-group full"><label class="auto-label">Saldo cuentas (€) <span style="color:var(--green);font-size:10px">✦ calculado</span></label><input type="number" id="form-saldo" readonly class="auto-field" placeholder="calculado automáticamente"><span id="saldo-hint" style="font-size:11px;color:var(--text-dim)"></span></div>
           </div>
           <div class="section-title">📈 Inversiones</div>
           <div class="alert alert-info" style="font-size:12px;padding:9px 12px;margin-bottom:10px">Las operaciones en <b>Inversiones</b> calculan el total automáticamente.</div>
           <div class="form-grid">
-            <div class="form-group"><label class="auto-label">Total invertido <span style="color:var(--green);font-size:10px">✦ auto</span></label><input type="number" id="form-total-inv" readonly class="auto-field"></div>
+            <div class="form-group"><label class="auto-label">Invertido actual <span style="color:var(--green);font-size:10px">✦ auto</span></label><input type="number" id="form-total-inv" readonly class="auto-field"></div>
             <div class="form-group"><label>Valor cartera hoy (€) <span style="color:var(--accent);font-size:10px">↳ tú lo introduces</span></label><input type="number" id="form-valor-cartera" placeholder="ej. 3500" step="0.01" oninput="updatePreview()"></div>
-            <div class="form-group" style="display:none"><label class="auto-label">Rent. inversiones <span style="color:var(--green);font-size:10px">✦</span></label><input type="text" id="form-rent-inv" readonly class="auto-field" placeholder="—"></div>
-            <div class="form-group" style="display:none"><label class="auto-label">Rentabilidad real <span style="color:var(--purple);font-size:10px">✦</span></label><input type="text" id="form-twrr" readonly class="auto-field" style="border-color:rgba(167,139,250,.4)!important;background:rgba(167,139,250,.05)!important" placeholder="—"></div>
           </div>
           <div class="section-title">🏦 Plan de Pensiones</div>
           <div class="form-grid">
@@ -699,18 +697,33 @@ body.privacy .badge{filter:none!important} /* percentages always visible */
 
     <!-- INDEPENDENCIA FINANCIERA -->
     <section class="page" id="page-independencia">
+      <!-- Los dos supuestos que gobiernan todo el cálculo viven aquí, junto
+           al número que producen, en vez de escondidos en Ajustes. -->
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-header"><div class="card-title">Tus supuestos</div></div>
+        <div class="card-body">
+          <p class="chart-help">Cambia estos dos valores y verás al instante cómo se mueve tu fecha de independencia.</p>
+          <div class="form-grid" style="max-width:520px">
+            <div class="form-group">
+              <label>Gasto mensual objetivo (€)</label>
+              <input type="number" id="set-gasto" placeholder="ej. 2000" oninput="saveSettings()">
+              <span style="font-size:11px;color:var(--text-dim)">Lo que quieres poder gastar al mes sin trabajar.</span>
+            </div>
+            <div class="form-group">
+              <label>Tasa de retiro anual (%)</label>
+              <input type="number" id="set-tasa" placeholder="4" value="4" step="0.1" oninput="saveSettings()">
+              <span style="font-size:11px;color:var(--text-dim)">Cuánto sacarías al año de tu cartera. Lo habitual es un 4%.</span>
+            </div>
+          </div>
+        </div>
+      </div>
       <div id="if-content"></div>
     </section>
 
     <!-- AJUSTES -->
     <section class="page" id="page-ajustes">
       <div style="max-width:520px">
-        <div class="section-title">🎯 Libertad financiera</div>
-        <div class="form-grid">
-          <div class="form-group"><label>Gasto mensual objetivo (€)</label><input type="number" id="set-gasto" placeholder="ej. 2000" oninput="saveSettings()"></div>
-          <div class="form-group"><label>Tasa retiro anual (%)</label><input type="number" id="set-tasa" placeholder="4" value="4" oninput="saveSettings()"></div>
-        </div>
-        <div class="section-title" style="margin-top:20px">💼 Ingresos</div>
+        <div class="section-title">💼 Ingresos</div>
         <div class="form-grid">
           <div class="form-group">
             <label>Neto por paga (€)</label>
@@ -761,7 +774,7 @@ body.privacy .badge{filter:none!important} /* percentages always visible */
       <div class="form-group"><label>Ahorro del mes (€)</label><input type="number" id="edit-ahorro-mes" step="0.01" oninput="onEditAhorroChange()"><span id="edit-saldo-hint" style="font-size:11px;color:var(--text-dim)"></span></div>
       <div class="form-group"><label class="auto-label">Saldo cuentas ✦</label><input type="number" id="edit-saldo" class="auto-field" readonly step="0.01"></div>
       <div class="form-group"><label>Valor cartera (€)</label><input type="number" id="edit-valor-cartera" step="0.01" oninput="refreshEditPreview()"></div>
-      <div class="form-group"><label class="auto-label">Total invertido ✦</label><input type="number" id="edit-total-inv" readonly class="auto-field"></div>
+      <div class="form-group"><label class="auto-label">Invertido actual ✦</label><input type="number" id="edit-total-inv" readonly class="auto-field"></div>
       <div class="form-group"><label>Aportación PP mes (€)</label><input type="number" id="edit-aport-pp" step="0.01" oninput="onEditPPChange()"></div>
       <div class="form-group"><label>Valor plan pensiones (€)</label><input type="number" id="edit-valor-pp" step="0.01" oninput="refreshEditPreview()"></div>
       <div class="form-group full"><label class="auto-label">Total PP acumulado ✦</label><input type="number" id="edit-total-pp" readonly class="auto-field"></div>
@@ -1150,22 +1163,41 @@ function crecimientoPatrimonio(){
   return {ultimo, media, mesRef: ant.label, mesActual: ult.label, periodos};
 }
 
-/* Variación del ahorro respecto al mes anterior, en %.
-   Si el mes anterior ahorraste 0 o en negativo NO se calcula: un porcentaje
-   sobre una base negativa no significa nada (pasar de -600 € a +1.000 € no
-   es "un 266% más"), así que en ese caso se muestra la diferencia en euros. */
-function variacionAhorro(){
+/* Crecimiento del ahorro: media de los últimos 3 meses frente a la media de
+   los 3 anteriores. Se compara media contra media (y no un mes suelto contra
+   otro) porque un solo mes raro —una paga extra, una compra grande— hace que
+   el porcentaje diga cualquier cosa. Si la media anterior es 0 o negativa no
+   se muestra %, solo la diferencia en euros: un porcentaje sobre base
+   negativa no significa nada. */
+function crecimientoAhorro(n=3){
   const conDato=sortedMonths().filter(m=>m.ahorro_mes!==null&&m.ahorro_mes!==undefined);
   if(conDato.length<2)return null;
-  const ult=conDato[conDato.length-1], ant=conDato[conDato.length-2];
-  const a=ult.ahorro_mes||0, b=ant.ahorro_mes||0;
+  const recientes=conDato.slice(-n);
+  const previos=conDato.slice(-(n*2),-n);
+  if(!previos.length)return null;
+  const media=arr=>arr.reduce((s,m)=>s+(m.ahorro_mes||0),0)/arr.length;
+  const act=media(recientes), ant=media(previos);
   return {
-    pct: b>0 ? (a-b)/b : null,
-    diff: a-b,
-    actual: a,
-    anterior: b,
-    mesRef: ant.label,
+    pct: ant>0 ? (act-ant)/ant : null,
+    diff: act-ant,
+    actual: act,
+    anterior: ant,
+    nAct: recientes.length,
+    nAnt: previos.length,
   };
+}
+
+/* Ahorro REAL de un mes: tu sueldo puede acabar en tres sitios distintos y
+   los tres son ahorro. Contar solo la cuenta remunerada infravalora lo que
+   de verdad apartas cada mes.
+     · cuenta  → lo que metes en la cuenta remunerada (ahorro_mes)
+     · invertido → compras menos ventas de ese mes
+     · pensiones → tu aportación al plan ese mes                          */
+function ahorroTotalMes(m){
+  const cuenta=m.ahorro_mes||0;
+  const invertido=aportadoEnMes(m.year,m.month);
+  const pension=(ppAport.find(p=>p.year===m.year&&p.month===m.month)||{}).amount||0;
+  return {cuenta, invertido, pension, total: cuenta+invertido+pension};
 }
 
 /* Tasa de ahorro media de los últimos N meses. Se calcula sobre el total
@@ -1176,8 +1208,14 @@ function tasaAhorroMedia(n=6){
   if(!sueldo||sueldo<=0)return null;
   const ult=sortedMonths().filter(m=>m.ahorro_mes!==null&&m.ahorro_mes!==undefined).slice(-n);
   if(!ult.length)return null;
-  const total=ult.reduce((s,m)=>s+(m.ahorro_mes||0),0);
-  return {tasa: total/(sueldo*ult.length), meses: ult.length};
+  const partes=ult.map(ahorroTotalMes);
+  const total=partes.reduce((s,p)=>s+p.total,0);
+  const desglose={
+    cuenta:    partes.reduce((s,p)=>s+p.cuenta,0)/ult.length,
+    invertido: partes.reduce((s,p)=>s+p.invertido,0)/ult.length,
+    pension:   partes.reduce((s,p)=>s+p.pension,0)/ult.length,
+  };
+  return {tasa: total/(sueldo*ult.length), meses: ult.length, mediaTotal: total/ult.length, desglose};
 }
 
 function calcTWRR(upToYear,upToMonth){
@@ -1257,7 +1295,7 @@ function showPage(id){
   if(id==='dashboard')renderDashboard();
   if(id==='analisis')renderAnalisis();
   if(id==='historial')renderHistorial();
-  if(id==='independencia')renderIndependencia();
+  if(id==='independencia'){initAjustes();renderIndependencia();}
   if(id==='nuevo-mes')initNuevoMes();
   if(id==='inversiones')renderInvestments();
   if(id==='objetivos')renderObjetivos();
@@ -1303,8 +1341,14 @@ function renderDashboard(){
   const totalInv=totalInvertidoHasta(last.year,last.month);
   const gananciaCartera=last.valor_cartera!==null&&last.valor_cartera!==undefined?(last.valor_cartera||0)-totalInv:null;
 
-  // KPI — Patrimonio total
-  document.getElementById('kpi-patrimonio').textContent=fmt(pat);
+  // KPI — Patrimonio total.
+  // Si al mes en curso le falta algún dato, mostramos el último mes COMPLETO
+  // y lo decimos: enseñar un patrimonio al que le falta la cartera (contada
+  // como 0 €) es enseñar una cifra que no existe.
+  const ultCompletoDash=completosDash.length?completosDash[completosDash.length-1]:null;
+  const patMostrado=ultCompletoDash?patrimonio(ultCompletoDash):pat;
+  const faltanDatos=!mesCompleto(last);
+  document.getElementById('kpi-patrimonio').textContent=fmt(patMostrado);
   if(diffPat!==null){
     const cls=diffPat>=0?'badge-green':'badge-red';
     document.getElementById('kpi-patrimonio-badge').innerHTML=`<span class="badge ${cls}">${diffPat>=0?'+':''}${fmt(diffPat)}</span>`;
@@ -1314,9 +1358,12 @@ function renderDashboard(){
   // El % se toma del cálculo entre meses COMPLETOS: comparar contra un mes
   // al que le falta un dato daría una caída que no ha ocurrido.
   const crecPat=crecimientoPatrimonio();
-  document.getElementById('kpi-patrimonio-sub').innerHTML=crecPat&&crecPat.ultimo!==null
-    ?`<span class="${numClass(crecPat.ultimo)}">${crecPat.ultimo>=0?'+':''}${fmtPct(crecPat.ultimo)}</span> vs ${crecPat.mesRef} · Incluye PP ${fmt(last.valor_pp)}`
-    :`Incluye PP ${fmt(last.valor_pp)}`;
+  const avisoFalta=faltanDatos&&ultCompletoDash
+    ? ` · <span style="color:var(--amber)">a ${ultCompletoDash.label}, falta ${camposQueFaltan(last).join(' y ')} de ${last.label}</span>`
+    : '';
+  document.getElementById('kpi-patrimonio-sub').innerHTML=(crecPat&&crecPat.ultimo!==null
+    ?`<span class="${numClass(crecPat.ultimo)}">${crecPat.ultimo>=0?'+':''}${fmtPct(crecPat.ultimo)}</span> vs ${crecPat.mesRef} · Incluye PP ${fmt((ultCompletoDash||last).valor_pp)}`
+    :`Incluye PP ${fmt((ultCompletoDash||last).valor_pp)}`)+avisoFalta;
 
   // KPI — Ahorro del mes
   document.getElementById('kpi-ahorro').textContent=fmt(last.ahorro_mes);
@@ -1326,7 +1373,7 @@ function renderDashboard(){
   // (una compra grande, una paga extra) no debe teñir el indicador.
   const tam=tasaAhorroMedia(6);
   document.getElementById('kpi-ahorro-sub').innerHTML=tam!==null
-    ?`Tasa de ahorro ${tam.meses}m <span class="badge ${tam.tasa>=0.2?'badge-green':tam.tasa>=0.1?'badge-amber':'badge-red'}">${fmtPct(tam.tasa)}</span>`
+    ?`Ahorras el <span class="badge ${tam.tasa>=0.2?'badge-green':tam.tasa>=0.1?'badge-amber':'badge-red'}">${fmtPct(tam.tasa)}</span> del sueldo · cuenta + inversiones + pensiones, ${tam.meses}m`
     :'Configura sueldo en Ajustes para ver la tasa';
 
   // KPI — Saldo cuentas
@@ -1338,13 +1385,13 @@ function renderDashboard(){
   // KPI — Cartera inversiones, sin TWRR en dashboard
   document.getElementById('kpi-cartera').textContent=fmt(last.valor_cartera);
   document.getElementById('kpi-cartera-sub').innerHTML=gananciaCartera!==null
-    ?`Coste ${fmt(totalInv)} · <span class="${numClass(gananciaCartera)}">${gananciaCartera>=0?'+':''}${fmt(gananciaCartera)}</span> sin vender`
+    ?`Invertido ${fmt(totalInv)} · <span class="${numClass(gananciaCartera)}">${gananciaCartera>=0?'+':''}${fmt(gananciaCartera)}</span> sin vender`
     :'Actualiza el valor de cartera';
 
   // Extra KPIs — indicadores en positivo: miden lo que has construido.
   // IF queda en su propia página.
   const colchon=colchonMeses();
-  const varAhorro=variacionAhorro();
+  const crecAhorro=crecimientoAhorro(3);
   const ahorroAnio=ahorroAcumuladoAnio(last.year);
   const mesesAnio=sm.filter(m=>m.year===last.year&&m.ahorro_mes!==null&&m.ahorro_mes!==undefined).length;
   document.getElementById('kpi-extra').innerHTML=`
@@ -1374,15 +1421,13 @@ function renderDashboard(){
         :'Necesitas 2 meses completos'}</div>
     </div>
     <div class="kpi-card" style="border-top:2px solid var(--amber)">
-      <div class="kpi-label">Ahorro vs mes anterior</div>
-      <div class="kpi-value ${varAhorro?numClass(varAhorro.diff):''}" style="font-size:22px">${
-        !varAhorro?'—'
-        :varAhorro.pct!==null?(varAhorro.pct>=0?'+':'')+fmtPct(varAhorro.pct)
-        :(varAhorro.diff>=0?'+':'')+fmt(varAhorro.diff)}</div>
-      <div class="kpi-sub sensitive">${!varAhorro?'Necesitas 2 meses'
-        :varAhorro.pct!==null
-          ?`${(varAhorro.diff>=0?'+':'')+fmt(varAhorro.diff)} vs ${varAhorro.mesRef}`
-          :`vs ${varAhorro.mesRef} (${fmt(varAhorro.anterior)}) · sin % por base negativa`}</div>
+      <div class="kpi-label">Crecimiento ahorro</div>
+      <div class="kpi-value ${crecAhorro?numClass(crecAhorro.diff):''}" style="font-size:22px">${
+        !crecAhorro?'—'
+        :crecAhorro.pct!==null?(crecAhorro.pct>=0?'+':'')+fmtPct(crecAhorro.pct)
+        :(crecAhorro.diff>=0?'+':'')+fmt(crecAhorro.diff)}</div>
+      <div class="kpi-sub sensitive">${!crecAhorro?`Necesitas ${2*3} meses de datos`
+        :`${fmt(crecAhorro.actual)}/mes últimos ${crecAhorro.nAct} · antes ${fmt(crecAhorro.anterior)}/mes`}</div>
     </div>
     <div class="kpi-card" style="border-top:2px solid var(--purple)">
       <div class="kpi-label">Plan de pensiones</div>
@@ -1415,10 +1460,12 @@ function renderDashboard(){
   // Progress
   const year=last.year,obj=objectives[year];
   if(obj){
-    const cumAhorro=ahorroAcumuladoAnio(year),pA=Math.min(cumAhorro/obj.ahorro,1.5),pP=Math.min(pat/obj.patrimonio,1.5);
+    // patMostrado = ultimo mes COMPLETO: medir el objetivo contra un mes al
+    // que le falta la cartera daria un progreso menor del real.
+    const cumAhorro=ahorroAcumuladoAnio(year),pA=Math.min(cumAhorro/obj.ahorro,1.5),pP=Math.min(patMostrado/obj.patrimonio,1.5);
     const mesesRestantes=Math.max(1,12-last.month);
     const faltaAhorro=obj.ahorro-cumAhorro;
-    const faltaPatrimonio=obj.patrimonio-pat;
+    const faltaPatrimonio=obj.patrimonio-patMostrado;
     const ahorroMesNecesario=Math.max(0,faltaAhorro/mesesRestantes);
     const patrimonioMesNecesario=Math.max(0,faltaPatrimonio/mesesRestantes);
     document.getElementById('progress-section').innerHTML=`
@@ -1428,7 +1475,7 @@ function renderDashboard(){
         <div style="text-align:right;font-size:10.5px;color:var(--text-muted);margin-top:3px">${(pA*100).toFixed(1)}%</div>
       </div>
       <div style="margin-bottom:14px">
-        <div style="display:flex;justify-content:space-between;margin-bottom:5px;font-size:12.5px"><span style="font-weight:600">Patrimonio ${year}</span><span style="font-family:var(--mono);font-size:11px;color:var(--text-muted)">${fmt(pat)} / ${fmt(obj.patrimonio)}</span></div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:5px;font-size:12.5px"><span style="font-weight:600">Patrimonio ${year}</span><span style="font-family:var(--mono);font-size:11px;color:var(--text-muted)">${fmt(patMostrado)} / ${fmt(obj.patrimonio)}</span></div>
         <div class="progress-track"><div class="progress-fill" style="width:${Math.min(pP*100,100)}%;background:${pP>=1?'var(--green)':'var(--purple)'}"></div></div>
         <div style="text-align:right;font-size:10.5px;color:var(--text-muted);margin-top:3px">${(pP*100).toFixed(1)}%</div>
       </div>
@@ -1487,12 +1534,42 @@ function renderAnalisis(){
     document.getElementById('insights-grid').innerHTML='<p style="color:var(--text-muted);grid-column:1/-1;padding:20px">Necesitas al menos 2 meses de datos.</p>';
     return;
   }
-  const last=sm[sm.length-1],first=sm[0];
+  const last=sm[sm.length-1];
   const twrr=calcTWRR(last.year,last.month);
   const totalInv=totalInvertidoHasta(last.year,last.month);
   const totalPP=totalPPHasta(last.year,last.month);
-  const pat=patrimonio(last),patFirst=patrimonio(first);
-  const patGrowth=patFirst>0?(pat-patFirst)/patFirst:null;
+  const pat=patrimonio(last);
+  // Crecimiento del AÑO en curso: se compara con el último mes del año
+  // anterior (o con el primer mes registrado del año si no hay histórico
+  // previo), no con el principio de todos los tiempos.
+  const completosPrev=sm.filter(mesCompleto);
+  const refAnio=[...completosPrev].reverse().find(m=>m.year<last.year)
+    ?? completosPrev.find(m=>m.year===last.year) ?? null;
+  const patRefAnio=refAnio?patrimonio(refAnio):null;
+  // El extremo actual también debe ser un mes completo: si al mes en curso
+  // le falta el valor de cartera, patrimonio() le cuenta 0 € y el
+  // crecimiento del año saldría muy por debajo del real.
+  const ultCompleto=completosPrev.length?completosPrev[completosPrev.length-1]:null;
+  const patActualComp=ultCompleto?patrimonio(ultCompleto):null;
+  const patGrowthAnio=patRefAnio&&patRefAnio>0&&patActualComp!==null&&refAnio!==ultCompleto
+    ?(patActualComp-patRefAnio)/patRefAnio:null;
+
+  // Media de ahorro mensual sobre los meses con dato.
+  const mesesConAhorro=sm.filter(m=>m.ahorro_mes!==null&&m.ahorro_mes!==undefined);
+  const mesesAhorro=mesesConAhorro.length;
+  const mediaAhorro=mesesAhorro?mesesConAhorro.reduce((s,m)=>s+(m.ahorro_mes||0),0)/mesesAhorro:0;
+
+  // Porcentaje del sueldo neto mensual que acaba en ahorro, contando los
+  // tres destinos (cuenta remunerada, inversiones y plan de pensiones):
+  // medir solo la cuenta infravalora lo que de verdad apartas.
+  const partesAhorro=mesesConAhorro.map(ahorroTotalMes);
+  const desg={
+    cuenta:    mesesAhorro?partesAhorro.reduce((s,p)=>s+p.cuenta,0)/mesesAhorro:0,
+    invertido: mesesAhorro?partesAhorro.reduce((s,p)=>s+p.invertido,0)/mesesAhorro:0,
+    pension:   mesesAhorro?partesAhorro.reduce((s,p)=>s+p.pension,0)/mesesAhorro:0,
+    total:     mesesAhorro?partesAhorro.reduce((s,p)=>s+p.total,0)/mesesAhorro:0,
+  };
+  const tasaGlobal=settings.sueldo&&settings.sueldo>0&&mesesAhorro?desg.total/settings.sueldo:null;
   // Igual que en el dashboard: comparar solo meses con todos los datos, o
   // un mes a medio rellenar se lleva el "peor mes" sin merecerlo.
   const completos=sm.filter(mesCompleto);
@@ -1520,19 +1597,26 @@ function renderAnalisis(){
       <div class="insight-sub sensitive">${fmt(last.valor_pp)} vs ${fmt(totalPP)} aportado</div>
     </div>
     <div class="insight-card">
-      <div class="insight-title">Crecimiento patrimonial total</div>
-      <div class="insight-val ${patGrowth!==null?numClass(patGrowth):''}">${patGrowth!==null?fmtPct(patGrowth):'—'}</div>
-      <div class="insight-sub">Desde ${first.label} hasta ${last.label}</div>
+      <div class="insight-title">Crecimiento patrimonial ${last.year}</div>
+      <div class="insight-val ${patGrowthAnio!==null?numClass(patGrowthAnio):''}">${patGrowthAnio!==null?(patGrowthAnio>=0?'+':'')+fmtPct(patGrowthAnio):'—'}</div>
+      <div class="insight-sub sensitive">${patGrowthAnio!==null?`${fmt(patRefAnio)} → ${fmt(patActualComp)} · ${refAnio.label} a ${ultCompleto.label}`:`Sin dos meses completos en ${last.year}`}</div>
     </div>
     <div class="insight-card">
-      <div class="insight-title">🏆 Mejor mes</div>
-      <div class="insight-val num-pos sensitive">+${fmt(best.change)}</div>
-      <div class="insight-sub">${best.label}</div>
+      <div class="insight-title">Media de ahorro mensual</div>
+      <div class="insight-val sensitive ${numClass(mediaAhorro)}">${mediaAhorro>=0?'+':''}${fmt(mediaAhorro)}</div>
+      <div class="insight-sub sensitive" style="line-height:1.7">
+        A la cuenta remunerada, ${mesesAhorro} ${mesesAhorro===1?'mes':'meses'}<br>
+        🏆 Mejor: <b>${best.label}</b> <span class="num-pos">+${fmt(best.change)}</span><br>
+        📉 Peor: <b>${worst.label}</b> <span class="num-neg">${fmt(worst.change)}</span>
+      </div>
     </div>
     <div class="insight-card">
-      <div class="insight-title">📉 Peor mes</div>
-      <div class="insight-val num-neg sensitive">${fmt(worst.change)}</div>
-      <div class="insight-sub">${worst.label}</div>
+      <div class="insight-title">Del sueldo va al ahorro</div>
+      <div class="insight-val ${tasaGlobal!==null?numClass(tasaGlobal):''}">${tasaGlobal!==null?fmtPct(tasaGlobal):'—'}</div>
+      <div class="insight-sub sensitive" style="line-height:1.7">${tasaGlobal!==null
+        ?`De ${fmt(settings.sueldo)} netos apartas ${fmt(desg.total)} al mes<br>
+          Cuenta ${fmt(desg.cuenta)} · Inversiones ${fmt(desg.invertido)} · Pensiones ${fmt(desg.pension)}`
+        :'Configura tu sueldo en Ajustes'}</div>
     </div>`;
 
   setTimeout(()=>{
@@ -1652,12 +1736,20 @@ function drawGrowthChart(sm){
   const PAD={top:14,right:16,bottom:32,left:62};
   const CW=W-PAD.left-PAD.right,CH=H-PAD.top-PAD.bottom;
 
-  // For each month, split growth into: ahorro (what you put in) vs mercado (what investments gained)
-  const data=sm.slice(1).map((m,i)=>{
-    const prev=sm[i];
+  // Reparte la subida de cada mes entre lo que pones TÚ y lo que gana el
+  // mercado. Dos correcciones importantes frente a la versión anterior:
+  //  1) Las aportaciones al plan de pensiones son dinero tuyo, no ganancia
+  //     del mercado; antes se sumaban a "mercado" e inflaban esa parte.
+  //  2) Solo se comparan meses completos: a un mes al que le falta el valor
+  //     de cartera, patrimonio() le cuenta 0 € y fingía un desplome enorme.
+  const comp=sm.filter(mesCompleto);
+  if(comp.length<2)return;
+  const data=comp.slice(1).map((m,i)=>{
+    const prev=comp[i];
     const totalChange=patrimonio(m)-patrimonio(prev);
-    const ahorroPart=m.ahorro_mes||0; // your contribution
-    const mercadoPart=totalChange-ahorroPart; // rest = market / PP growth
+    const aportPP=(ppAport.find(p=>p.year===m.year&&p.month===m.month)||{}).amount||0;
+    const ahorroPart=(m.ahorro_mes||0)+aportPP; // todo lo que pones tú
+    const mercadoPart=totalChange-ahorroPart;   // el resto: revalorización
     return{label:m.label,ahorro:ahorroPart,mercado:mercadoPart,total:totalChange};
   });
 
@@ -2010,25 +2102,25 @@ function autoFillSaldo(){
 function autoFillTotalPP(){const y=parseInt(document.getElementById('form-year').value),m=parseInt(document.getElementById('form-month').value);const aport=parseFloat(document.getElementById('form-aport-pp').value)||0;const prev=totalPPHasta(y,m===1?0:m-1);document.getElementById('form-total-pp').value=(prev+aport).toFixed(2)}
 function getFormValues(){
   const year=parseInt(document.getElementById('form-year').value),month=parseInt(document.getElementById('form-month').value);
-  return{year,month,ahorro_mes:parseFloat(document.getElementById('form-ahorro-mes').value)||null,saldo_cuentas:parseFloat(document.getElementById('form-saldo').value)||null,valor_cartera:parseFloat(document.getElementById('form-valor-cartera').value)||null,valor_pp:parseFloat(document.getElementById('form-valor-pp').value)||null,aport_pp:parseFloat(document.getElementById('form-aport-pp').value)||null,sueldo:parseFloat(document.getElementById('form-sueldo').value)||null};
+  return{year,month,ahorro_mes:parseFloat(document.getElementById('form-ahorro-mes').value)||null,saldo_cuentas:parseFloat(document.getElementById('form-saldo').value)||null,valor_cartera:parseFloat(document.getElementById('form-valor-cartera').value)||null,valor_pp:parseFloat(document.getElementById('form-valor-pp').value)||null,aport_pp:parseFloat(document.getElementById('form-aport-pp').value)||null};
 }
 function updatePreview(){
   const v=getFormValues();
   const ti=totalInvertidoHasta(v.year,v.month);
   const pat=(v.saldo_cuentas||0)+(v.valor_cartera||0)+(v.valor_pp||0);
   const rent=ti&&ti!==0&&v.valor_cartera!==null?((v.valor_cartera-ti)/ti):null;
-  const tasaAhorro=v.sueldo&&v.sueldo>0&&v.ahorro_mes?v.ahorro_mes/v.sueldo:null;
+  // Misma definición que en el dashboard: los tres destinos del ahorro.
+  const partesMes=ahorroTotalMes({year:v.year,month:v.month,ahorro_mes:v.ahorro_mes});
+  const tasaAhorro=settings.sueldo&&settings.sueldo>0&&partesMes.total?partesMes.total/settings.sueldo:null;
   const sm=sortedMonths();const prev=sm.length?sm[sm.length-1]:null;
   const prevPat=prev?patrimonio(prev):null;const diffPat=prevPat!==null&&pat?pat-prevPat:null;
-  document.getElementById('form-rent-inv').value=rent!==null?fmtPct(rent):'—';
-  document.getElementById('form-twrr').value=fmtPct(calcTWRR(v.year,v.month));
   const obj=objectives[v.year];
   document.getElementById('preview-section').innerHTML=`
     <div style="display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border)"><span style="color:var(--text-muted);font-size:13px">Patrimonio total</span><span style="font-family:var(--mono);font-weight:700;font-size:15px">${pat?fmt(pat):'—'}</span></div>
     ${diffPat!==null?`<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border)"><span style="color:var(--text-muted);font-size:12px">vs ${prev?.label}</span><span class="badge ${diffPat>=0?'badge-green':'badge-red'}">${diffPat>=0?'+':''}${fmt(diffPat)}</span></div>`:''}
-    ${tasaAhorro!==null?`<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border)"><span style="color:var(--text-muted);font-size:12px">Tasa de ahorro</span><span class="badge ${tasaAhorro>=0.2?'badge-green':tasaAhorro>=0.1?'badge-amber':'badge-red'}">${fmtPct(tasaAhorro)}</span></div>`:''}
+    ${tasaAhorro!==null?`<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border)"><span style="color:var(--text-muted);font-size:12px">Tasa de ahorro <span style="font-size:10px;color:var(--text-dim)">(todo incluido)</span></span><span class="badge ${tasaAhorro>=0.2?'badge-green':tasaAhorro>=0.1?'badge-amber':'badge-red'}">${fmtPct(tasaAhorro)}</span></div>`:''}
     <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border)"><span style="color:var(--text-muted);font-size:12px">Saldo cuentas</span><span style="font-family:var(--mono);font-size:12px">${fmt(v.saldo_cuentas)}</span></div>
-    <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border)"><span style="color:var(--text-muted);font-size:12px">Cartera / Total inv.</span><span style="font-family:var(--mono);font-size:12px">${fmt(v.valor_cartera)} / ${fmt(ti)}</span></div>
+    <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border)"><span style="color:var(--text-muted);font-size:12px">Valor cartera / invertido</span><span style="font-family:var(--mono);font-size:12px">${fmt(v.valor_cartera)} / ${fmt(ti)}</span></div>
     ${rent!==null?`<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border)"><span style="color:var(--text-muted);font-size:12px">Rentabilidad inv.</span><span class="badge ${rent>=0?'badge-green':'badge-red'}">${fmtPct(rent)}</span></div>`:''}
     ${obj&&pat?`<div style="padding:9px 0"><div style="font-size:10.5px;color:var(--text-dim);margin-bottom:5px">% Objetivo patrimonio ${v.year}</div><div class="progress-track"><div class="progress-fill" style="width:${Math.min((pat/obj.patrimonio)*100,100)}%;background:${pat>=obj.patrimonio?'var(--green)':'var(--purple)'}"></div></div><div style="text-align:right;font-size:10.5px;color:var(--text-muted);margin-top:2px">${((pat/obj.patrimonio)*100).toFixed(1)}%</div></div>`:''} `;
 }
@@ -2039,10 +2131,9 @@ function saveMonth(){
   const existing=months.findIndex(m=>m.year===v.year&&m.month===v.month);
   if(existing>=0){if(!confirm(`Ya existe ${label}. ¿Sobreescribir?`))return;months[existing]=record}else months.push(record);
   if(v.aport_pp!==null){const ppIdx=ppAport.findIndex(p=>p.year===v.year&&p.month===v.month);if(ppIdx>=0)ppAport[ppIdx].amount=v.aport_pp;else ppAport.push({year:v.year,month:v.month,amount:v.aport_pp})}
-  if(v.sueldo&&v.sueldo>0){settings.sueldo=v.sueldo;localStorage.setItem('pat_settings',JSON.stringify(settings))}
   saveData();showToast(`✓ ${label} guardado`);clearForm();
 }
-function clearForm(){['form-ahorro-mes','form-valor-cartera','form-aport-pp','form-valor-pp','form-sueldo'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=''});['form-saldo','form-total-inv','form-total-pp','form-rent-inv','form-twrr'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=''});document.getElementById('saldo-hint').textContent='';updatePreview()}
+function clearForm(){['form-ahorro-mes','form-valor-cartera','form-aport-pp','form-valor-pp'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=''});['form-saldo','form-total-inv','form-total-pp'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=''});document.getElementById('saldo-hint').textContent='';updatePreview()}
 
 // ═══════════════════════════════════════════════
 // INVERSIONES — PnL helpers
@@ -2193,8 +2284,6 @@ function renderInvestments(){
   document.getElementById('inv-count').textContent=`${investments.length} operaciones`;
 
   // ── Global PnL (exclude dividends from invested amounts) ──
-  const ops = investments.filter(i=>i.type!=='Dividendo');
-  const totalBuys  = ops.filter(i=>i.amount>0).reduce((s,i)=>s+i.amount,0);
   const totalDivs   = dividendosTotales();
   const sm=sortedMonths();
   const lastWithCartera=[...sm].reverse().find(m=>m.valor_cartera!==null&&m.valor_cartera!==undefined);
@@ -2230,9 +2319,8 @@ function renderInvestments(){
 
   document.getElementById('pnl-kpis').innerHTML=`
     <div class="kpi-card blue">
-      <div class="kpi-label">Total comprado</div>
-      <div class="kpi-value sensitive" style="font-size:20px">${fmt(totalBuys)}</div>
-      <div class="kpi-sub">Coste en cartera: <span class="sensitive">${fmt(costeEnCartera)}</span></div>
+      <div class="kpi-label">Invertido actual</div>
+      <div class="kpi-value sensitive" style="font-size:20px">${fmt(costeEnCartera)}</div>
     </div>
     <div class="kpi-card green">
       <div class="kpi-label">Ganancia/pérdida total</div>
@@ -2291,7 +2379,7 @@ function renderInvestments(){
       <div style="font-size:10px;font-weight:600;color:var(--text-dim);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">Ganancia/pérdida total</div>
       <div style="display:grid;gap:8px">
         <div style="display:flex;justify-content:space-between;font-size:12.5px">
-          <span style="color:var(--text-muted)">Coste en cartera (lo que aún no has vendido)</span>
+          <span style="color:var(--text-muted)">Invertido actual (lo que aún no has vendido)</span>
           <span class="sensitive" style="font-family:var(--mono)">${fmt(costeEnCartera)}</span>
         </div>
         <div style="display:flex;justify-content:space-between;font-size:12.5px">
@@ -2312,7 +2400,7 @@ function renderInvestments(){
           <span style="color:var(--text)">Gan./pérd. no realizada</span>
           <span class="sensitive" style="font-family:var(--mono);color:${unrealizedPnL!==null?(unrealizedPnL>=0?'var(--green)':'var(--red)'):'var(--text-muted)'}">${unrealizedPnL!==null?(unrealizedPnL>=0?'+':'')+fmt(unrealizedPnL,2):'Añade valor cartera'}</span>
         </div>
-        ${unrealizedPct!==null?`<div style="text-align:right;font-size:11px;color:${unrealizedPct>=0?'var(--green)':'var(--red)'}">${unrealizedPct>=0?'+':''}${fmtPct(unrealizedPct)} sobre coste en cartera</div>`:''}
+        ${unrealizedPct!==null?`<div style="text-align:right;font-size:11px;color:${unrealizedPct>=0?'var(--green)':'var(--red)'}">${unrealizedPct>=0?'+':''}${fmtPct(unrealizedPct)} sobre lo invertido</div>`:''}
         <div style="display:flex;justify-content:space-between;font-size:12px;padding-top:4px;border-top:1px dashed var(--border)">
           <span style="color:var(--text-muted)">Ganancia total estimada</span>
           <span class="sensitive" style="font-family:var(--mono);font-weight:600;color:${((unrealizedPnL||0)+totalRealizedPnL+totalDivs)>=0?'var(--green)':'var(--red)'}">${((unrealizedPnL||0)+totalRealizedPnL+totalDivs)>=0?'+':''}${fmt((unrealizedPnL||0)+totalRealizedPnL+totalDivs,2)}</span>
@@ -2478,7 +2566,11 @@ function renderObjetivos(){
   document.getElementById('objectives-container').innerHTML=`<div class="obj-grid">${Object.keys(objectives).sort().map(year=>{
     const obj=objectives[year];
     const ym=sm.filter(m=>m.year==year);
-    const last=ym.length?ym[ym.length-1]:null;
+    // Se mide contra el último mes COMPLETO del año: si al mes en curso le
+    // falta el valor de cartera, patrimonio() lo cuenta como 0 € y el
+    // progreso hacia el objetivo saldría bastante por debajo del real.
+    const ymComp=ym.filter(mesCompleto);
+    const last=ymComp.length?ymComp[ymComp.length-1]:(ym.length?ym[ym.length-1]:null);
     // Ahorro acumulado del año
     const cumAhorro=ahorroAcumuladoAnio(parseInt(year));
     // Patrimonio actual (total, como siempre ha sido el objetivo)
@@ -2566,6 +2658,10 @@ function saveSettings(){
   // los cálculos que ya existían (tasa de ahorro, etc.) siguen igual.
   settings.sueldo=actualizarSueldoProrrateado();
   saveData();showToast('Ajustes guardados');
+  // Los supuestos de gasto y tasa viven ahora en la página de Independencia,
+  // así que al cambiarlos hay que repintar el cálculo que alimentan.
+  const activa=document.querySelector('.page.active');
+  if(activa&&activa.id==='page-independencia')renderIndependencia();
 }
 
 // ═══════════════════════════════════════════════
@@ -2577,7 +2673,7 @@ function exportCSV(){
   // Sheet 1: monthly data
   const sm=sortedMonths();
   const sep=';'; // Excel ES locale uses semicolon
-  let csv='MES;AHORRO_MES;SALDO_CUENTAS;VALOR_CARTERA;TOTAL_INVERTIDO;VALOR_PP;TOTAL_PP;PATRIMONIO_TOTAL;RENT_CARTERA_PCT\n';
+  let csv='MES;AHORRO_MES;SALDO_CUENTAS;VALOR_CARTERA;INVERTIDO_ACTUAL;VALOR_PP;TOTAL_PP;PATRIMONIO_TOTAL;RENT_CARTERA_PCT\n';
   sm.forEach(m=>{
     const p=patrimonio(m);
     const ti=totalInvertidoHasta(m.year,m.month);
